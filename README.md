@@ -75,7 +75,7 @@ Choose a bundled atmosphere through **Customize → Wallpaper studio**, or uploa
 - System **Reduce Motion** preferences disable background animation.
 - Uploaded photos are static.
 
-The inspiration widget currently uses one fixed quote; it does not rotate daily.
+The inspiration widget rotates through 31 original, locally bundled NOVA prompts. It changes at local midnight, stays consistent across refreshes that day, and works offline.
 
 ## Weather
 

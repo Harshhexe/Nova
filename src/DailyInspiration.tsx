@@ -1,0 +1,4 @@
+import{useEffect,useState}from'react';
+import{Sun,Sparkles}from'lucide-react';
+import{inspirationForDate,millisecondsUntilMidnight}from'./daily-inspiration.mjs';
+export function DailyInspiration(){const[quote,setQuote]=useState(()=>inspirationForDate());useEffect(()=>{let timer:ReturnType<typeof setTimeout>;const update=()=>{clearTimeout(timer);setQuote(inspirationForDate());timer=setTimeout(update,millisecondsUntilMidnight()+50)};const visible=()=>{if(!document.hidden)update()};update();document.addEventListener('visibilitychange',visible);window.addEventListener('focus',update);return()=>{clearTimeout(timer);document.removeEventListener('visibilitychange',visible);window.removeEventListener('focus',update)}},[]);return <article className="widget glass intention-widget"><div className="widget-top"><span><Sun size={15}/> A LITTLE INSPIRATION</span><Sparkles size={14}/></div><p>“{quote.text}”</p><small>{quote.author}</small></article>}
