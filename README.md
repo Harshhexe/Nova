@@ -1,74 +1,134 @@
 # NOVA
 
-A private, atmospheric new-tab space built with React, TypeScript, Vite, Tailwind, Motion, Zustand, and dnd-kit.
+**Your browser. Your universe.**
 
-## Develop
+A personal new-tab page with flowing ambient wallpapers, a clock and greeting, colorful favorites, fast Google autocomplete, local notes, and built-in weather.
 
-Requires Node.js 20.19+ or 22.12+.
+No account required. Your shortcuts and preferences stay on your device.
 
-```sh
-npm install
-npm run dev
-```
+## Use NOVA with New Tab Redirect
 
-Open http://localhost:5173. `npm run build` checks TypeScript and creates `dist/`. `npm test` runs critical URL, search encoding, and calculator tests.
+This is the recommended setup if you want to use the [New Tab Redirect extension](https://chromewebstore.google.com/detail/new-tab-redirect/icpgjfneehieebagbmdbhnlpiopdcmna?hl=en-US).
 
-## Install in Chrome / Chromium
+### 1. Open NOVA
 
-1. Run `npm run build`.
-2. Open `chrome://extensions` and enable Developer mode.
-3. Choose **Load unpacked**, then select this project's `dist` directory.
-4. Open a new tab. Accept Chrome's new-tab override prompt if shown.
+Visit **[the-nova-web.vercel.app](https://the-nova-web.vercel.app/)** in Chrome.
 
-Run `npm run package:extension` to produce `nova-extension.zip` for distribution. Unzip before loading unpacked. This is an MV3 extension; no server is needed after installation. Its wallpapers, icons, and interface are bundled and work offline. External destinations and weather searches require a connection.
+NOVA is already hosted. You do not need Node.js, a terminal, a local server, or NOVA’s standalone extension to use this website.
 
-## Everyday use
+### 2. Set your new-tab URL
 
-- **Cmd/Ctrl K** opens search. Arrow keys select; Enter opens; Escape dismisses.
-- Search your shortcuts, type a website URL, run a calculator expression, or search the selected engine.
-- `/focus`, `/notes`, `/settings`, and `/wallpaper` access tools.
-- Right-click a shortcut to edit/delete it. **Add shortcut** creates a destination.
-- The sliders button enables layout editing: drag tiles, or focus a tile and use Space then arrow keys to reorder; Space drops.
-- Wallpaper Studio offers six bundled atmospheric palettes with brightness and blur controls.
-- Settings autosave and support JSON export/import, clock preferences, name, widget visibility, search engine, and launch behavior.
-- Focus timer supports 15/25/45/60 minute sessions, pause, and reset. Notes and intentions autosave.
+1. Install [New Tab Redirect](https://chromewebstore.google.com/detail/new-tab-redirect/icpgjfneehieebagbmdbhnlpiopdcmna?hl=en-US).
+2. Open `chrome://extensions`.
+3. Find **New Tab Redirect**, open **Details**, then **Extension options**. You can also access its options from the extension menu.
+4. Set the custom redirect URL to:
 
-## Architecture
+   ```text
+   https://the-nova-web.vercel.app/
+   ```
 
-- `src/main.tsx`: home, reusable shortcut tile, clock, panels, and interactions.
-- `src/store.ts`: typed preference/shortcut models, Zustand persistence, optional Chrome local storage bridge.
-- `src/logic.mjs`: pure URL validation, query encoding, and parser-based calculator (no eval).
-- `src/style.css`: visual tokens, layered ambient artwork, materials, responsive layouts, reduced-motion behavior.
-- `public/manifest.json`: minimal-permission new-tab extension.
+5. Save it, then open a new tab.
 
-Preferences are stored in localStorage, plus Chrome storage when available. No account, analytics, history, bookmarks, or location access. Automatic shortcut artwork requests the website domain from Google’s favicon service; cached icons are kept locally when cross-origin pixel access is available. Tile colors are sampled from icons where possible, with curated brand colors and a deterministic domain palette as fallbacks. Turn off “Use website icon & matching color” in a shortcut to use manual artwork and avoid that shortcut’s icon request. Weather displays real current conditions and a five-day forecast from Open-Meteo inside NOVA. City searches and selected city coordinates are sent to Open-Meteo only when using Weather; no device location is requested. The selected city and ten-minute forecast cache are stored locally. Data exports contain your saved notes, tasks, and links; keep them private.
+New Tab Redirect changes new tabs; it does not change Chrome’s startup pages or homepage. Chrome’s address-bar focus after a redirect is controlled by the browser and the extension.
 
-## Scope
+Use one extension to control your new-tab page. If you previously installed NOVA’s standalone new-tab extension, disable it while using New Tab Redirect.
 
-The foundation and selected interaction/productivity features are implemented. Folders, arbitrary widget resizing, browser history/bookmark integrations, calendar connections, AI, synchronization, and theme sharing remain future work. No API integrations or unsupported browser capabilities are represented as functional. Extension packaging is build-verified; installation needs manual verification in Chrome.
+### 3. Make it yours
 
-### Search suggestions
+On your first visit, NOVA asks for your name, appearance preferences, optional weather city, and shows a short walkthrough. Complete or skip setup once; later visits go straight to your home screen.
 
-The search palette filters saved shortcut names and URLs as you type. After an 80 ms pause, cached completions appear immediately; new live query completions are retrieved from Google Autocomplete through a same-origin `/api/suggest` endpoint (or directly with a scoped host permission inside Chrome). Arrow keys select, Enter opens, and Tab/Right Arrow or the row’s fill button completes text. Searches open in your configured engine. Disable live suggestions in Customize → Search to keep typed queries local until submitting a search. Commands, calculator expressions, and website URLs do not trigger live requests. Offline failures leave shortcut matching and search usable.
+Existing users with saved NOVA preferences skip the welcome flow. If you close setup before completing it, it appears again on the next visit.
 
-Recent NOVA searches are saved locally (up to 20), with the latest eight shown when opening search. Clear history removes this list. This does not read browser history or recover searches made before this feature was enabled.
+## Everyday controls
 
-Weather is powered by Open-Meteo (https://open-meteo.com/). Its public API is for non-commercial use; obtain an appropriate commercial plan before a commercial release.
+| Action | How |
+| --- | --- |
+| Open search | Click the search bar or press **Cmd/Ctrl + K** |
+| Navigate suggestions | **↑ / ↓** |
+| Fill a suggestion | **Tab**, **→** at the end of the input, or its fill arrow |
+| Open a result | **Enter** |
+| Alternate current/new-tab action | **Cmd/Ctrl + Enter** |
+| Close a panel | **Escape** |
+| Show favorites | Hover over the bottom shelf or use **Show favorites** |
+| Add a favorite | **Add shortcut** |
+| Edit/remove favorites | Open the shelf, then select **Edit favorites** |
+| Reorder favorites | Drag in edit mode; keyboard users can focus a sortable tile, press **Space**, use arrows, then **Space** to drop |
+| Undo favorite removal | Select **Undo** in the confirmation toast within six seconds |
+| Finish editing | **Done** or **Escape** |
+| Change appearance | **Customize** |
+| Check weather | Select the weather control at the top right |
 
-### Production website
+Right-clicking a favorite also opens its editor. Changing its URL automatically updates its website icon and matching color. Manual icon/color choices remain available in the editor.
 
-Run `npm run build` and `npm start` to serve NOVA and its Google suggestion endpoint on port 4173. Set PORT/HOST for your deployment environment. Static-only hosting needs an equivalent `/api/suggest` server route for live autocomplete. The server forwards only the query to Google, without browser cookies or identifiers; it keeps a bounded one-minute memory cache and does not log queries. The extension calls Google directly with its scoped host permission. Disable live suggestions to stop autocomplete requests.
+Search opens with recent NOVA searches. Remove one using its **×** button or remove the list using **Clear history**. Commands such as `/notes`, `/wallpaper`, and `/settings` work while typing.
 
-### Personalization polish
+## Wallpapers and motion
 
-Wallpaper Studio accepts JPG, PNG, WebP and AVIF up to 20 MB, optimizes them locally to a maximum 2560 × 1600 image, and keeps the image in IndexedDB. The image is never uploaded to a server. Wallpaper exports contain preferences only; the local image stays on this device. The uploaded image can be removed in Wallpaper Studio.
+Choose a bundled atmosphere through **Customize → Wallpaper studio**, or upload your own image.
 
-Use **Edit favorites** in the shelf to reorder, edit or remove destinations. Removal offers Undo for six seconds. Done or Escape exits editing. Recent search rows have their own remove button. Search matches are highlighted. Hover opening has a short close grace period and suppresses accidental activation during the shelf entrance; click the shelf handle to pin it open, then click outside or press Escape to close.
+- Supports JPG, PNG, WebP and AVIF, up to **20 MB**.
+- Uploaded images are optimized locally to fit within **2560 × 1600** pixels.
+- Images stay in your browser’s IndexedDB; they are not sent to a server.
+- Brightness and softness are adjustable.
+- Bundled backgrounds have flowing waves and slow aurora ribbons.
+- Background motion pauses while panels or favorites are open and while the tab is hidden.
+- System **Reduce Motion** preferences disable background animation.
+- Uploaded photos are static.
 
-### Ambient background motion
+The inspiration widget currently uses one fixed quote; it does not rotate daily.
 
-Bundled atmospheres use two rasterized radial-gradient layers animated with CSS transforms over 12–15 seconds. Ambient backgrounds avoid the full-screen blur filter and SVG turbulence; the softness control adjusts their radial feathering. Uploaded photos retain their normal image blur setting. Motion pauses for open panels, favorites, hidden tabs and reduced-motion preferences.
+## Weather
 
-### First-time welcome
+Select the weather control, search for a city, and choose the correct result. NOVA displays current conditions, feels-like temperature, humidity, wind, and a five-day forecast inside the app.
 
-A fresh installation starts with a four-step setup: name, atmosphere and clock/widget choices, optional city weather, then a keyboard/favorites/customization walkthrough. Finish or Skip setup saves completion locally so future visits open the home screen. Existing preferences from older NOVA versions are treated as an existing user and skip onboarding. Abandoning an unfinished setup starts it again on the next visit. Resetting appearance preferences does not restart onboarding. Clearing all browser/extension storage creates a fresh installation.
+The selected city is remembered locally. Forecasts are cached for ten minutes; use the refresh button to request a fresh forecast. NOVA does not request device location access.
+
+Weather and city lookup are provided by [Open-Meteo](https://open-meteo.com/). Internet access is required. Its public API is intended for non-commercial use; review the provider’s terms before a commercial release.
+
+## Local data and privacy
+
+NOVA does not have an account system, analytics, or cloud synchronization.
+
+| Data | Storage |
+| --- | --- |
+| Favorites, order, names, URLs, appearance, preferences, notes, tasks, recent searches, setup completion | Browser localStorage |
+| Uploaded wallpaper | Browser IndexedDB |
+| Weather city and forecast cache | Browser localStorage |
+| Preferences when running as NOVA’s standalone extension | Also mirrored to Chrome local storage |
+
+**New Tab Redirect does not store NOVA’s shortcuts.** In redirect mode, NOVA is a normal website, and its data belongs to the URL and Chrome profile you use.
+
+Online features make these requests:
+
+- **Google autocomplete:** typed search queries are sent to Google through NOVA’s suggestion endpoint. Commands, calculator expressions, and recognized website addresses do not trigger autocomplete requests. Disable **Live search suggestions** in Customize to stop them.
+- **Website icons:** a favorite’s website domain is sent to Google’s favicon service. Turn off automatic website appearance for a shortcut to use manual artwork.
+- **Weather:** city searches and selected city coordinates are sent to Open-Meteo when you use the weather panel.
+- **Opening a destination or search:** navigates to that website or your chosen search engine.
+
+The included suggestion server does not log query text or forward your browser cookies. It keeps a bounded, one-minute in-memory suggestion cache.
+
+Clearing site data, removing a browser profile, or clearing extension data can erase your setup. Incognito storage is temporary. Keep periodic JSON exports; they contain your notes, links and searches, so store them privately.
+
+
+## Troubleshooting
+
+**New tabs show “site can’t be reached.”**  
+Check your internet connection and confirm the saved redirect URL is exactly `https://the-nova-web.vercel.app/`. Try opening that URL directly. If the hosted site is unavailable, try again later.
+
+**My shortcuts disappeared after changing the URL.**  
+You probably changed the origin, port, or browser profile. Return to the old URL, export your settings, then import them at the new one. Do not clear the old site’s data first.
+
+**NOVA is still opening another new-tab page.**  
+Check the redirect URL and disable other extensions that override new tabs, including NOVA’s optional standalone extension if you are using redirect mode.
+
+**Changes to source files are not appearing in daily use.**  
+Local source edits do not update the hosted website until a new version is deployed. For a local production build, run `npm run build` again. Development changes are automatically reflected only on the development server.
+
+**Google suggestions are unavailable.**  
+Check your connection and that Live search suggestions are enabled. The hosted deployment must provide `/api/suggest`; if suggestions remain unavailable, that endpoint may need a deployment fix. For local development, `npm start` and `npm run dev` provide it. Local shortcut matching and submitted searches remain usable when live suggestions fail.
+
+**The background is not moving.**  
+Close panels and the favorites shelf. Motion pauses during interaction and in hidden tabs; system Reduce Motion also disables it. Uploaded wallpapers are static.
+
+**Weather cannot load.**  
+Check your connection, search for the city again, or use refresh/retry. Weather depends on Open-Meteo availability.
