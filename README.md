@@ -132,3 +132,13 @@ Close panels and the favorites shelf. Motion pauses during interaction and in hi
 
 **Weather cannot load.**  
 Check your connection, search for the city again, or use refresh/retry. Weather depends on Open-Meteo availability.
+
+## Shortcut folders
+
+Choose **New folder** in the favorites shelf, give it a name, and select shortcuts. Open a folder to launch its links; choose **Edit folder & shortcuts** to rename it or update its contents. Selecting a shortcut from another folder moves it here. You can also change a shortcut’s folder in its own editor. Removing a folder returns its shortcuts to the main shelf. Folders and membership are saved locally and included in JSON exports. Search still finds links inside folders.
+
+**Customize → New tab extension** links to New Tab Redirect and displays `https://the-nova-web.vercel.app/` for its redirect setting.
+
+### Vercel autocomplete route
+
+`api/suggest.js` is the Vercel Function entry point for `/api/suggest`, sharing the same handler used in development. Deploy the whole repository, including `api/`, `server/`, and `vercel.json`; uploading only `dist/` omits the function and causes autocomplete requests to return 404. After deployment, verify `/api/suggest?q=hello` returns a JSON array rather than a 404 page.
