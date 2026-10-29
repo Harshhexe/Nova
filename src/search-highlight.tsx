@@ -1,0 +1,1 @@
+export function Highlight({text,query}:{text:string;query:string}){const needle=query.trim();if(!needle)return <>{text}</>;const lower=text.toLowerCase();const index=lower.indexOf(needle.toLowerCase());if(index<0)return <>{text}</>;return <>{text.slice(0,index)}<mark>{text.slice(index,index+needle.length)}</mark>{text.slice(index+needle.length)}</>}

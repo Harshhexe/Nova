@@ -1,0 +1,5 @@
+node_modules/
+dist/
+*.tsbuildinfo
+nova-extension.zip
+.DS_Store
