@@ -62,6 +62,8 @@ Right-clicking a favorite also opens its editor. Changing its URL automatically 
 
 Search opens with recent NOVA searches. Remove one using its **×** button or remove the list using **Clear history**. Commands such as `/notes`, `/wallpaper`, and `/settings` work while typing.
 
+Type math expressions (e.g. `24 * 7`) or unit/currency queries (e.g. `100 usd to eur`, `$50 in inr`, `10 km to miles`, `100 f to c`, `500 gb to tb`, `2.5 hours to minutes`) directly in **⌘K** for instant conversion. Press **Enter** on the conversion result to copy it directly to your clipboard.
+
 ## Wallpapers and motion
 
 Choose a bundled atmosphere through **Customize → Wallpaper studio**, or upload your own image.
@@ -70,9 +72,10 @@ Choose a bundled atmosphere through **Customize → Wallpaper studio**, or uploa
 - Uploaded images are optimized locally to fit within **2560 × 1600** pixels.
 - Images stay in your browser’s IndexedDB; they are not sent to a server.
 - Brightness and softness are adjustable.
+- **Interactive canvas shaders:** Choose between **Stardust** (gravitational constellation stars), **Fluid aurora** (pointer-deforming light ribbons), or **Cosmic warp** (interstellar depth drift). Shaders respond organically to pointer movement and clicks.
 - Bundled backgrounds have flowing waves and slow aurora ribbons.
-- Background motion pauses while panels or favorites are open and while the tab is hidden.
-- System **Reduce Motion** preferences disable background animation.
+- Background and canvas motion pause while panels or favorites are open and while the tab is hidden.
+- System **Reduce Motion** preferences disable background animation and freeze canvas motion into a static celestial field.
 - Uploaded photos are static.
 
 The inspiration widget rotates through 31 original, locally bundled NOVA prompts. It changes at local midnight, stays consistent across refreshes that day, and works offline.
