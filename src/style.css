@@ -118,3 +118,10 @@ footer .customize{margin-left:auto}
 .shader-mode-picker button:hover{background:#ffffff14;color:white}
 .shader-mode-picker button.active{border-color:#d4bdfa;background:#ffffff1c;color:white;box-shadow:0 0 16px #bb9bf830}
 .shader-mode-picker button svg{opacity:.9}
+.search-bar{cursor:text;transition:transform .25s cubic-bezier(.16,1,.3,1),box-shadow .25s ease,background .25s ease,border-color .25s ease}
+.search-bar:hover{background:#e9e1fa22;box-shadow:0 14px 38px #27213f20,inset 0 1px 0 #ffffff14}
+.search-bar:focus-within{background:#f1ebfc28;border-color:rgba(230,215,255,.55);box-shadow:0 18px 45px #201a352c,0 0 0 2px rgba(214,189,250,.35),inset 0 1px 0 #ffffff1a;transform:translateY(-2px)}
+.hero-search-input{flex:1;min-width:0;background:transparent!important;border:0!important;padding:0!important;margin:0!important;color:#fff!important;font-size:14.5px;font-family:inherit;outline:none!important;box-shadow:none!important;caret-color:#d8c4fa}
+.hero-search-input::placeholder{color:rgba(255,255,255,.62);font-size:14px}
+.search-bar kbd{cursor:pointer;user-select:none;transition:background .18s,color .18s}
+.search-bar kbd:hover{background:#ffffff20;color:#fff}

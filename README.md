@@ -43,7 +43,8 @@ Existing users with saved NOVA preferences skip the welcome flow. If you close s
 
 | Action | How |
 | --- | --- |
-| Open search | Click the search bar or press **Cmd/Ctrl + K** |
+| Quick search on new tab | Open a new tab and start typing immediately — search activates automatically with smooth spring motions |
+| Open search | Click the search bar, start typing anywhere on the home screen, or press **Cmd/Ctrl + K** |
 | Navigate suggestions | **↑ / ↓** |
 | Fill a suggestion | **Tab**, **→** at the end of the input, or its fill arrow |
 | Open a result | **Enter** |
