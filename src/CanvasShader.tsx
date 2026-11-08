@@ -103,6 +103,7 @@ export function CanvasShader({ mode, theme, paused = false }: CanvasShaderProps)
     };
 
     const onPointerDown = (e: PointerEvent) => {
+      if (paused || prefersReducedMotion || document.hidden) return;
       ripplesRef.current.push({
         x: e.clientX,
         y: e.clientY,
@@ -118,7 +119,7 @@ export function CanvasShader({ mode, theme, paused = false }: CanvasShaderProps)
 
     // Initialize mode-specific objects
     // 1. Stardust
-    const starCount = Math.max(50, Math.floor((width * height) / 14000));
+    const starCount = mode === 'stardust' ? Math.min(140, Math.max(50, Math.floor((width * height) / 14000))) : 0;
     const stars: Star[] = Array.from({ length: starCount }, () => {
       const x = Math.random() * width;
       const y = Math.random() * height;
@@ -140,7 +141,7 @@ export function CanvasShader({ mode, theme, paused = false }: CanvasShaderProps)
     });
 
     // 2. Warp Stars
-    const warpCount = Math.max(80, Math.floor((width * height) / 9000));
+    const warpCount = mode === 'warp' ? Math.min(220, Math.max(80, Math.floor((width * height) / 9000))) : 0;
     const warpStars: WarpStar[] = Array.from({ length: warpCount }, () => {
       const z = Math.random() * 1000;
       return {
@@ -248,12 +249,16 @@ export function CanvasShader({ mode, theme, paused = false }: CanvasShaderProps)
           ctx.shadowBlur = s.radius * 3.5;
           ctx.shadowColor = s.color;
           ctx.fill();
+          ctx.shadowBlur = 0;
 
           // Connect constellation lines between stars
           for (let j = i + 1; j < stars.length; j++) {
             const s2 = stars[j];
-            const dist = Math.hypot(s.x - s2.x, s.y - s2.y);
-            if (dist < maxDist) {
+            const dx = s.x - s2.x;
+            const dy = s.y - s2.y;
+            const distanceSquared = dx * dx + dy * dy;
+            if (distanceSquared < maxDist * maxDist) {
+              const dist = Math.sqrt(distanceSquared);
               const lineAlpha = (1 - dist / maxDist) * 0.22 * twinkle;
               ctx.beginPath();
               ctx.moveTo(s.x, s.y);
