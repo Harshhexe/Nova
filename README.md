@@ -23,6 +23,7 @@ The preview is ad-hoc signed and unnotarized. macOS may block it under your secu
 - **Trackpad gestures.** Swipe with two fingers to go back or forward. Pinch in to open Tab Overview, then hover over a tab and pinch out to open it. Toggle each gesture in Browser Settings.
 - **Your dashboard.** Pick an animated wallpaper, set your weather city, and organize shortcuts into folders.
 - **Browser essentials.** Use private windows, find-in-page with match navigation, download controls, per-site permissions, saved logins and autofill, or built-in ad and tracker blocking with site exceptions.
+- **Updates.** In Preview 2 and later, an icon appears above Settings when a newer version is available. Click it and choose **Update and relaunch** to install.
 - **Media controls.** Hover over the playing media tile above Settings for artwork, playback controls, and a seekable timeline when the site exposes them.
 
 | Shortcut | Action |
@@ -59,3 +60,5 @@ npm test              # Run the project tests
 Run `npm run dev` for the Vite dashboard and `npm start` for its local suggestions server. `npm run build` writes the web bundle to `dist/`. Vercel deployments use the serverless handler at `api/suggest.js` as well as the web bundle. `npm run package:extension` builds the standalone new-tab extension.
 
 The launch site lives in `docs/` and publishes to GitHub Pages. Preview it locally with `python3 -m http.server 4181 --directory docs`.
+
+Desktop updates use GitHub Releases. Match the release tag to the packaged version, such as `v1.0.0-preview.2`, and attach the `NOVA-mac-arm64.dmg` produced by the build.

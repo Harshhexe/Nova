@@ -15,6 +15,7 @@ if (process.platform === 'darwin') {
   execFileSync('clang++', [
     '-arch', process.arch, '-std=c++17', '-fobjc-arc', '-bundle', '-undefined', 'dynamic_lookup',
     '-framework', 'AppKit', '-I', headers,
-    resolve(root, 'trackpad.mm'), '-o', resolve(root, 'trackpad.node')
+    resolve(root, 'trackpad.mm'), resolve(root, 'default-browser.mm'), resolve(root, 'app-update.mm'),
+    '-o', resolve(root, 'trackpad.node')
   ], { stdio: 'inherit' });
 }

@@ -134,7 +134,9 @@ kbd { color: var(--muted); background: #ffffff0a; border: 1px solid var(--line);
 .sidebar, .sidebar-glass { position: absolute; inset: var(--toolbar-height) auto var(--page-gap) var(--page-gap); width: 50px; border-radius: 9px; }
 .sidebar-glass { isolation: isolate; overflow: hidden; pointer-events: none; }
 .sidebar { padding: 6px 3px; border: 1px solid var(--line); background: linear-gradient(165deg, #ffffff0d, #ffffff03 70%); box-shadow: inset 0 1px #ffffff0e; overflow: auto; scrollbar-width: none; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.sidebar-settings { margin-top: auto; }
+.sidebar-settings { margin-top: auto; display: grid; gap: 5px; }
+.sidebar-update .icon-button { color: #cce9f6; background: #b5dce81a; }
+.sidebar-update .icon-button:hover { background: #b5dce835; }
 .viewport { position: absolute; inset: var(--toolbar-height) var(--page-gap) var(--page-gap) var(--page-left); border-radius: 9px; overflow: hidden; background: radial-gradient(ellipse at top right, #eaf2ff09, transparent 66%), #0d11140f; }
 .library { height: 100%; overflow: auto; max-width: 940px; padding: clamp(25px, 5vw, 72px); margin: auto; }
 .library-head { display: flex; align-items: center; gap: 16px; margin-bottom: 30px; }
@@ -207,6 +209,12 @@ kbd { color: var(--muted); background: #ffffff0a; border: 1px solid var(--line);
   border-radius: 3px;
   pointer-events: none;
 }
+
+.default-browser { gap: 12px; margin-bottom: 12px; }
+.default-browser > svg { flex: none; color: var(--accent); }
+.default-browser > span { flex: 1; }
+.default-browser .text-button { white-space: nowrap; }
+.default-browser .text-button:disabled { opacity: .6; cursor: wait; }
 
 .settings-options {
   display: grid;

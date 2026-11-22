@@ -1,6 +1,9 @@
 #import <AppKit/AppKit.h>
 #include <node_api.h>
 
+napi_value RequestDefaultBrowser(napi_env env, napi_callback_info info);
+napi_value SwapAppBundles(napi_env env, napi_callback_info info);
+
 static id monitor;
 static napi_ref listener;
 
@@ -55,5 +58,11 @@ NAPI_MODULE_INIT() {
   napi_value start;
   napi_create_function(env, "start", NAPI_AUTO_LENGTH, Start, nullptr, &start);
   napi_set_named_property(env, exports, "start", start);
+  napi_value requestDefaultBrowser;
+  napi_create_function(env, "requestDefaultBrowser", NAPI_AUTO_LENGTH, RequestDefaultBrowser, nullptr, &requestDefaultBrowser);
+  napi_set_named_property(env, exports, "requestDefaultBrowser", requestDefaultBrowser);
+  napi_value swapAppBundles;
+  napi_create_function(env, "swapAppBundles", NAPI_AUTO_LENGTH, SwapAppBundles, nullptr, &swapAppBundles);
+  napi_set_named_property(env, exports, "swapAppBundles", swapAppBundles);
   return exports;
 }

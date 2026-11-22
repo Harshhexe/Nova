@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Command } from 'cmdk';
-import { ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, Bookmark, CircleAlert, Clock3, Compass, Globe2, GripVertical, KeyRound, Layers2, Link2, Minus, PanelLeft, PanelTop, Pause, Pin, Play, Plus, Puzzle, RotateCw, Search, Settings, ShieldCheck, ShieldAlert, Sparkles, StarOff, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, Bookmark, CircleAlert, Clock3, Compass, Globe2, GripVertical, House, KeyRound, Layers2, Link2, Minus, PanelLeft, PanelTop, Pause, Pin, Play, Plus, Puzzle, RotateCw, Search, Settings, ShieldCheck, ShieldAlert, StarOff, X } from 'lucide-react';
 import BlurText from './BlurText';
 import './shell.css';
 
@@ -16,6 +16,8 @@ type SavedLogin = { id: string; origin: string; username: string };
 type Site = { origin: string; connection: 'http' | 'https' | 'unverified'; permissions: Record<string, string>; canSetPermissions: boolean; adException: boolean };
 type BrowserState = {
   privateMode: boolean;
+  defaultBrowser: 'default' | 'available' | 'unavailable';
+  update?: { version: string; installing: boolean };
   findResult?: { matches: number; active: number };
   savedLogins: SavedLogin[];
   site?: Site;
@@ -50,7 +52,7 @@ declare global {
   }
 }
 
-const initial: BrowserState = { privateMode: false, savedLogins: [], tabs: [], sidebar: true, pageBlur: true, toolbarBlur: true, searchEngine: 'google', zoom: 100, platform: '', history: [], bookmarks: [], favorites: [], favoriteLimit: 0, downloads: [],
+const initial: BrowserState = { privateMode: false, defaultBrowser: 'unavailable', savedLogins: [], tabs: [], sidebar: true, pageBlur: true, toolbarBlur: true, searchEngine: 'google', zoom: 100, platform: '', history: [], bookmarks: [], favorites: [], favoriteLimit: 0, downloads: [],
   media: [], contentBlocking: 'off',
   extensions: [],
   preferences: { sidebar: ['bookmarks', 'history', 'downloads'], toolbar: ['back', 'forward', 'reload', 'bookmark', 'copy', 'new-tab', 'tabs'], fontSize: 16, defaultZoom: 100, newTabPage: 'dashboard', restoreTabs: true, rememberHistory: true, liveSuggestions: true, offerSaveLogins: true, blockAds: true, swipeHistory: true, pinchOverview: true, pinchOpenTab: true, downloadFolder: '' }
@@ -82,7 +84,7 @@ function recentAddressRows(history: Link[], query: string): AddressRow[] {
 
 function WebsiteIcon({ url, favicon, pinned }: { url: string; favicon?: string; pinned?: boolean }) {
   const [failedSource, setFailedSource] = useState('');
-  if (!url) return <Sparkles size={16} />;
+  if (!url) return <House size={16} />;
   const source = favicon || new URL('/favicon.ico', url).href;
   if (source === failedSource) return pinned ? <Pin size={15} /> : <Globe2 size={16} />;
   return <img className="website-icon" src={source} alt="" referrerPolicy="no-referrer" onError={() => setFailedSource(source)} />;
@@ -222,6 +224,29 @@ const toolbarOptions = [
   { id: 'tabs', label: 'Tab overview', icon: Layers2 },
   ...navigation
 ];
+
+function DefaultBrowser({ status }: { status: BrowserState['defaultBrowser'] }) {
+  const [request, setRequest] = useState<'idle' | 'pending' | 'unconfirmed'>('idle');
+  async function makeDefault() {
+    setRequest('pending');
+    const changed = await window.nova.act('make-default-browser').catch(() => false);
+    setRequest(changed ? 'idle' : 'unconfirmed');
+  }
+
+  return <div className="settings-card setting-row default-browser">
+    <Globe2 size={18} aria-hidden="true" />
+    <span role="status">
+      <strong>Default browser</strong>
+      <small>{status === 'default' ? 'NOVA opens web links from other apps.'
+        : status === 'unavailable' ? 'Use the installed NOVA app to set it as your default.'
+        : request === 'unconfirmed' ? 'You can also choose NOVA in System Settings → Desktop & Dock.'
+        : 'Open links from other apps in NOVA.'}</small>
+    </span>
+    {status === 'available' && <button type="button" className="text-button" disabled={request === 'pending'} onClick={() => void makeDefault()}>
+      {request === 'pending' ? 'Waiting for macOS…' : 'Make default'}
+    </button>}
+  </div>;
+}
 
 function IconPreferences({ area, selected }: { area: 'sidebar' | 'toolbar'; selected: string[] }) {
   const [dragging, setDragging] = useState<string>();
@@ -683,7 +708,15 @@ function Browser() {
         </button>
 
       </div>}
-      <div className="sidebar-settings"><IconButton label="Settings" pressed={panel === 'settings'} onClick={() => show(panel === 'settings' ? undefined : 'settings')}><Settings size={17} /></IconButton></div>
+      <div className="sidebar-settings">
+        {state.update && <div className="sidebar-update">
+          <IconButton label={state.update.installing ? 'Downloading NOVA update' : `Update NOVA to ${state.update.version}`}
+            disabled={state.update.installing} onClick={() => run('browser-update')}>
+            {state.update.installing ? <RotateCw className="spin" size={16} /> : <ArrowDownToLine size={17} />}
+          </IconButton>
+        </div>}
+        <IconButton label="Settings" pressed={panel === 'settings'} onClick={() => show(panel === 'settings' ? undefined : 'settings')}><Settings size={17} /></IconButton>
+      </div>
     </aside>}
     <main className="viewport">
       {panel === 'settings' && <section className="library browser-settings" aria-labelledby="browser-settings-heading">
@@ -694,6 +727,8 @@ function Browser() {
           <h1 id="browser-settings-heading" className="library-title">{selectedSettings?.label ?? 'Settings'}</h1>
           <IconButton label="Close settings" onClick={() => show()}><X size={18} /></IconButton>
         </header>
+        {state.platform === 'darwin' && !state.privateMode && (!selectedSettings || settingsSection === 'browser') &&
+          <DefaultBrowser status={state.defaultBrowser} />}
         {!selectedSettings ? <div className="settings-options">
           {settingsSections.map(({ id, label, icon: Icon }) => <button type="button" key={id} className={'settings-option option-' + id} aria-label={label} onClick={() => setSettingsSection(id)}>
             <Icon size={20} aria-hidden="true" />

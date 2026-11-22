@@ -12,6 +12,7 @@ import { installLoginPrompts } from './login-prompts.mjs';
 import { passwordVault, fillLogin } from './credentials.mjs';
 import { suggestionsHandler } from '../server/suggestions.mjs';
 import { createContentBlocker } from './content-blocker.mjs';
+import { createBrowserUpdater } from './browser-updates.mjs';
 
 const privateMode = app.commandLine.hasSwitch('nova-private');
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -44,6 +45,14 @@ if (!app.commandLine.hasSwitch('user-data-dir')) {
   app.setPath('userData', profilePath);
 }
 let window;
+let readyForExternalLinks = false;
+const pendingExternalLinks = [];
+let requestDefaultBrowser;
+let isDefaultBrowser = false;
+let settingDefaultBrowser = false;
+let updater;
+let swapAppBundles;
+const privateWindows = new Set();
 let startPage;
 let spotlight;
 let spotlightVisible = false;
@@ -113,6 +122,47 @@ function webUrl(input) {
   } catch { return ''; }
 }
 
+app.on('open-url', (event, input) => {
+  const url = webUrl(input);
+  if (!url) return;
+  event.preventDefault();
+  pendingExternalLinks.push(url);
+  openExternalLinks();
+});
+
+function openExternalLinks() {
+  if (!readyForExternalLinks || window.isDestroyed() || !pendingExternalLinks.length) return;
+  closeTour(false);
+  closeSpotlight(false);
+  window.webContents.send('browser:shortcut', 'dismiss-panel');
+  for (const url of pendingExternalLinks.splice(0)) newTab(url);
+  if (window.isMinimized()) window.restore();
+  window.show();
+  showing?.webContents.focus();
+}
+
+function checkDefaultBrowser() {
+  if (!requestDefaultBrowser) return;
+  const current = app.isDefaultProtocolClient('http') && app.isDefaultProtocolClient('https');
+  if (current === isDefaultBrowser) return;
+  isDefaultBrowser = current;
+  publish(false);
+}
+
+async function makeDefaultBrowser() {
+  if (!requestDefaultBrowser || settingDefaultBrowser) return false;
+  checkDefaultBrowser();
+  if (isDefaultBrowser) return true;
+  settingDefaultBrowser = true;
+  try {
+    await requestDefaultBrowser();
+    checkDefaultBrowser();
+    return isDefaultBrowser;
+  } finally {
+    settingDefaultBrowser = false;
+  }
+}
+
 function target(input) {
   const value = input.trim();
   if (!value) return '';
@@ -142,14 +192,19 @@ async function openPrivateWindow(url = '') {
       '--nova-private-engine=' + searchEngine, '--nova-private-block-ads=' + preferences.blockAds
     ];
     const child = spawn(process.execPath, args, { detached: true, stdio: ['pipe', 'ignore', 'ignore'] });
+    privateWindows.add(child);
     child.stdin.on('error', () => {});
     child.stdin.end(webUrl(url).slice(0, 8192));
     // Chromium helper processes can still be releasing the profile when the main process exits.
     const cleanup = () => setTimeout(() => {
       void rm(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 250 }).catch(() => {});
     }, 750);
-    child.once('exit', cleanup);
+    child.once('exit', () => {
+      privateWindows.delete(child);
+      cleanup();
+    });
     child.once('error', () => {
+      privateWindows.delete(child);
       cleanup();
       if (!window.isDestroyed()) dialog.showErrorBox('Could not open private window', 'Try opening it again.');
     });
@@ -303,6 +358,8 @@ function state() {
     activeId, sidebar: sidebarVisible(), pageBlur, toolbarBlur, searchEngine, preferences, contentBlocking, history, bookmarks, favorites, favoriteLimit,
     extensions: [...extensions.values()],
     privateMode,
+    defaultBrowser: requestDefaultBrowser ? isDefaultBrowser ? 'default' : 'available' : 'unavailable',
+    update: updater?.state(),
     findResult,
     savedLogins: loginList,
     site: origin ? {
@@ -1102,6 +1159,8 @@ function act(action, value) {
   const contents = tab?.view?.webContents;
   switch (action) {
     case 'new': return newTab();
+    case 'make-default-browser': return makeDefaultBrowser();
+    case 'browser-update': return updater?.install();
     case 'select': return select(value);
     case 'reopen': {
       const item = closed.pop();
@@ -1325,6 +1384,11 @@ async function launch() {
     let gesture;
     try {
       const trackpad = createRequire(import.meta.url)('./native/trackpad.node');
+      if (app.isPackaged && !privateMode) {
+        requestDefaultBrowser = trackpad.requestDefaultBrowser;
+        swapAppBundles = trackpad.swapAppBundles;
+        checkDefaultBrowser();
+      }
       trackpad.start(phase => {
         if (phase === 'pinch-in' || phase === 'pinch-out') {
           if (tour || !window?.isFocused() || (fullscreenPage && fullscreenPage === showing)) return;
@@ -1483,6 +1547,15 @@ async function launch() {
   installEditMenu(window.webContents);
   window.on('resize', () => { layout(); if (mediaExpanded) openMediaPopup(); });
   window.on('move', () => { if (mediaExpanded) openMediaPopup(); });
+  window.on('focus', checkDefaultBrowser);
+  if (app.isPackaged && process.platform === 'darwin' && !privateMode) {
+    updater = createBrowserUpdater({
+      swapBundles: swapAppBundles, getWindow: () => window,
+      canRestart: () => !privateWindows.size && !downloadItems.size,
+      prepareRestart: () => { publish(); return saveQueue; },
+      onChange: () => publish(false)
+    });
+  }
   function updateFullscreenLayout() {
     layout();
     publish(false);
@@ -1530,23 +1603,31 @@ async function launch() {
   });
   startPage = createStartPage();
   void startPage.webContents.loadURL(startUrl).catch(error => console.error('Could not load the NOVA dashboard:', error));
-  if (tabs.length) select(tabs.find(tab => tab.id === saved.activeId)?.id ?? tabs[0].id);
-  else newTab(privateAddress);
+  if (!pendingExternalLinks.length) {
+    if (tabs.length) select(tabs.find(tab => tab.id === saved.activeId)?.id ?? tabs[0].id);
+    else newTab(privateAddress);
+  }
   await window.loadFile(chromePath);
   createAddressPopup();
+  const openedViaLink = pendingExternalLinks.length > 0;
+  readyForExternalLinks = true;
+  openExternalLinks();
   if (vault) void refreshLogins();
   app.on('window-all-closed', () => app.quit());
   let savedOnQuit = false;
+  let preparingToQuit = false;
   app.on('before-quit', event => {
     if (savedOnQuit) return;
     event.preventDefault();
+    if (preparingToQuit) return;
+    preparingToQuit = true;
     publish();
-    void saveQueue.finally(() => {
+    void Promise.allSettled([saveQueue, updater?.stop()]).then(() => {
       savedOnQuit = true;
       app.quit();
     });
   });
-  if (!tourCompleted) {
+  if (!tourCompleted && !openedViaLink) {
     await openTour();
     if (!window.isDestroyed()) window.show();
   }

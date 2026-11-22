@@ -43,8 +43,10 @@ try {
 
   const [bundleDirectory] = await packager({
     dir: source, out: join(work, 'bundles'), name: 'NOVA', appBundleId: 'com.harshhexe.nova',
-    appVersion: version, platform: 'darwin', arch, electronVersion, icon, prune: false,
+    appVersion: version.split('-')[0], platform: 'darwin', arch, electronVersion, icon, prune: false,
+    protocols: [{ name: 'com.harshhexe.nova.web', schemes: ['http', 'https'] }],
     extendInfo: {
+      NOVAReleaseVersion: version,
       NSCameraUsageDescription: 'Allow a website you approve to use your camera.',
       NSMicrophoneUsageDescription: 'Allow a website you approve to use your microphone.',
       NSLocationUsageDescription: 'Allow a website you approve to request your location.'
