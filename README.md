@@ -2,7 +2,7 @@
 
 **Your beautiful browser.** NOVA is a Chromium-based browser for macOS with a slim vertical tab rail, search from anywhere, and a customizable start page.
 
-[Download the macOS preview](https://github.com/Harshhexe/Nova/releases/tag/v1.0.0-preview.1) · [Explore NOVA](https://harshhexe.github.io/Nova/) · [Open the web dashboard](https://the-nova-web.vercel.app/)
+[Download the macOS preview](https://github.com/Harshhexe/Nova/releases/tag/v1.0.0-preview.3) · [Explore NOVA](https://harshhexe.github.io/Nova/) · [Open the web dashboard](https://the-nova-web.vercel.app/)
 
 ![NOVA on macOS with the vertical tab rail, translucent navigation controls, and an aurora dashboard](docs/assets/dashboard.webp)
 
@@ -10,7 +10,7 @@
 
 The preview is built for **Apple Silicon Macs running macOS 13 or later**.
 
-1. Download [NOVA-mac-arm64.dmg](https://github.com/Harshhexe/Nova/releases/download/v1.0.0-preview.1/NOVA-mac-arm64.dmg).
+1. Download [NOVA-mac-arm64.dmg](https://github.com/Harshhexe/Nova/releases/download/v1.0.0-preview.3/NOVA-mac-arm64.dmg).
 2. Open the disk image and drag **NOVA** into **Applications**.
 3. Launch NOVA from Applications. The first run asks what to call you and walks through the dashboard, sidebar, and gestures.
 
@@ -61,4 +61,4 @@ Run `npm run dev` for the Vite dashboard and `npm start` for its local suggestio
 
 The launch site lives in `docs/` and publishes to GitHub Pages. Preview it locally with `python3 -m http.server 4181 --directory docs`.
 
-Desktop updates use GitHub Releases. Match the release tag to the packaged version, such as `v1.0.0-preview.2`, and attach the `NOVA-mac-arm64.dmg` produced by the build.
+Desktop updates use GitHub Releases. Match the release tag to the packaged version, such as `v1.0.0-preview.3`, and attach the `NOVA-mac-arm64.dmg` produced by the build.
