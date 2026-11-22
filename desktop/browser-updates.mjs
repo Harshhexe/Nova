@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { constants, createWriteStream } from 'node:fs';
-import { access, lstat, mkdir, mkdtemp } from 'node:fs/promises';
+import { access, lstat, mkdir, mkdtemp, readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
@@ -9,6 +9,7 @@ import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { promisify } from 'node:util';
 import { app, dialog, shell } from 'electron';
+import { applyDelta, maxDeltaSize } from './update-delta.mjs';
 
 const exec = promisify(execFile);
 const { rm } = createRequire(import.meta.url)('original-fs').promises;
@@ -50,6 +51,13 @@ function findUpdate(list, installed, arch) {
         !Number.isSafeInteger(asset.size) || asset.size < 1 || asset.size > 1024 ** 3) continue;
     latest = parts;
     update = { version, url, digest: asset.digest.slice(7), size: asset.size };
+    const deltaName = `NOVA-mac-${arch}-from-${installed}.delta.gz`;
+    const deltaUrl = `${releases}/download/${release.tag_name}/${deltaName}`;
+    const delta = release.assets.find(file => file?.name === deltaName && file.state === 'uploaded');
+    if (delta?.browser_download_url === deltaUrl && /^sha256:[a-f0-9]{64}$/.test(delta.digest) &&
+        Number.isSafeInteger(delta.size) && delta.size > 0 && delta.size < Math.min(maxDeltaSize, asset.size)) {
+      update.delta = { url: deltaUrl, digest: delta.digest.slice(7), size: delta.size };
+    }
   }
   return update;
 }
@@ -87,7 +95,7 @@ async function download(update, output, signal, onProgress) {
   throw new Error('Too many download redirects');
 }
 
-async function stageUpdate(update, work, staged, signal, onProgress) {
+async function stageFullUpdate(update, work, staged, signal, onProgress) {
   const disk = join(work, 'NOVA.dmg');
   const mount = join(work, 'mount');
   await download(update, disk, signal, onProgress);
@@ -101,13 +109,35 @@ async function stageUpdate(update, work, staged, signal, onProgress) {
   } finally {
     await exec('/usr/bin/hdiutil', ['detach', mount]);
   }
+}
 
+async function verifyStagedUpdate(staged, update, signal) {
   const [id, version] = await Promise.all([
     bundleProperty(staged, 'CFBundleIdentifier', signal),
     bundleProperty(staged, 'NOVAReleaseVersion', signal)
   ]);
   if (id !== 'com.harshhexe.nova' || version !== update.version) throw new Error('Application identity or version mismatch');
   await exec('/usr/bin/codesign', ['--verify', '--deep', '--strict', staged], { signal });
+}
+
+async function stageUpdate(update, bundle, work, staged, signal, onProgress) {
+  if (update.delta) {
+    try {
+      const patch = join(work, 'NOVA.delta.gz');
+      await download(update.delta, patch, signal, onProgress);
+      await exec('/usr/bin/ditto', [bundle, staged], { signal });
+      await applyDelta(staged, await readFile(patch));
+      await verifyStagedUpdate(staged, update, signal);
+      return;
+    } catch (error) {
+      signal.throwIfAborted();
+      console.warn('NOVA delta unavailable, downloading full update:', error.message);
+      await rm(staged, { recursive: true, force: true });
+      onProgress(0);
+    }
+  }
+  await stageFullUpdate(update, work, staged, signal, onProgress);
+  await verifyStagedUpdate(staged, update, signal);
 }
 
 export function createBrowserUpdater({ swapBundles, getWindow, canRestart, prepareRestart, onChange }) {
@@ -185,7 +215,7 @@ export function createBrowserUpdater({ swapBundles, getWindow, canRestart, prepa
       staging = await mkdtemp(join(dirname(bundle), '.nova-update-'));
       const staged = join(staging, 'NOVA.app');
       const signal = AbortSignal.any([installController.signal, AbortSignal.timeout(20 * 60 * 1000)]);
-      await stageUpdate(selected, work, staged, signal, percent => {
+      await stageUpdate(selected, bundle, work, staged, signal, percent => {
         if (progress === percent || stopped) return;
         progress = percent;
         onChange();
