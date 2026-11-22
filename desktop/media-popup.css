@@ -1,0 +1,57 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: -apple-system, sans-serif; color: #f7f7f8; }
+.card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  height: 116px;
+  padding: 10px 13px 8px;
+  border: 1px solid #ffffff26;
+  border-radius: 15px;
+  background: linear-gradient(145deg, #292b32ad, #111217dd);
+}
+#ambient {
+  position: absolute;
+  z-index: -1;
+  inset: -24px;
+  width: calc(100% + 48px);
+  height: calc(100% + 48px);
+  object-fit: cover;
+  filter: blur(30px);
+  opacity: .24;
+  pointer-events: none;
+}
+.header, .timeline, .controls { display: flex; align-items: center; }
+.header { gap: 9px; }
+#art { width: 35px; height: 35px; object-fit: cover; border-radius: 8px; }
+.info { display: grid; gap: 3px; min-width: 0; flex: 1; font-size: 12px; }
+strong, small { white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+small, .timeline { color: #ffffffaa; }
+.timeline { gap: 8px; margin-top: 4px; font-size: 10px; font-variant-numeric: tabular-nums; }
+.timeline input { appearance: none; flex: 1; min-width: 0; height: 16px; margin: 0; background: transparent; cursor: pointer; }
+.timeline input::-webkit-slider-runnable-track { height: 3px; border-radius: 4px; background: linear-gradient(to right, #ffffffc7 var(--played, 0%), #ffffff43 var(--played, 0%)); }
+.timeline input::-webkit-slider-thumb { appearance: none; width: 9px; height: 9px; margin-top: -3px; border-radius: 50%; background: #f7f7f8; }
+.timeline input:disabled { opacity: .4; cursor: default; }
+.controls { justify-content: center; gap: 12px; }
+button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: #ededf0;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+button:hover { background: #ffffff22; }
+button:focus-visible, input:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
+.controls button span { position: absolute; font-size: 6px; line-height: 1; font-weight: 700; }
+#toggle { width: 31px; height: 31px; color: #17181c; background: #f7f7f8; }
+#toggle:hover { background: #dfe0e5; }
+#toggle svg { fill: currentColor; stroke: none; }
+#toggle .pause, #toggle.playing .play { display: none; }
+#toggle.playing .pause { display: block; }

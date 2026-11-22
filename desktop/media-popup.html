@@ -1,0 +1,33 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data: http: https:"><link rel="stylesheet" href="media-popup.css"></head>
+<body>
+  <div class="card">
+    <img id="ambient" alt="" aria-hidden="true">
+    <div class="header">
+      <img id="art" alt="">
+      <div class="info"><strong id="title"></strong><small id="artist"></small></div>
+      <button id="open" aria-label="Open playing tab" title="Open playing tab">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg>
+      </button>
+    </div>
+    <div class="timeline">
+      <span id="elapsed">0:00</span>
+      <input id="progress" type="range" min="0" max="1" value="0" step="0.1" aria-label="Playback position">
+      <span id="duration">0:00</span>
+    </div>
+    <div class="controls">
+      <button id="back" aria-label="Back 10 seconds" title="Back 10 seconds">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 1 5 8M3 5v7h7"/></svg><span>10</span>
+      </button>
+      <button id="toggle" aria-label="Pause">
+        <svg class="play" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 12 7-12 7z"/></svg>
+        <svg class="pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM14 5h4v14h-4z"/></svg>
+      </button>
+      <button id="forward" aria-label="Forward 10 seconds" title="Forward 10 seconds">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 0-5 8m5-15v7h-7"/></svg><span>10</span>
+      </button>
+    </div>
+  </div>
+  <script src="media-popup.js"></script>
+</body>
+</html>

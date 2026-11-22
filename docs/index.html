@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101014">
+  <meta name="description" content="NOVA is a macOS browser with vertical tabs, search you can open from anywhere, and a new tab that feels like yours.">
+  <meta property="og:title" content="NOVA · Your beautiful browser">
+  <meta property="og:description" content="Vertical tabs, quick search, and a calmer home for the web.">
+  <meta property="og:image" content="https://harshhexe.github.io/Nova/assets/dashboard.webp">
+  <title>NOVA · Your beautiful browser</title>
+  <link rel="icon" href="./assets/nova.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./site.css">
+  <script src="./site.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="nav wrap">
+    <a class="brand" href="#main" aria-label="NOVA home"><img src="./assets/nova.svg" width="30" height="30" alt=""><span>NOVA</span></a>
+    <nav aria-label="Main navigation">
+      <a href="#experience">Experience</a>
+      <a href="#features">Features</a>
+      <a class="nav-download" href="#download">Download</a>
+    </nav>
+  </header>
+  <main id="main">
+    <section class="hero wrap" aria-labelledby="headline">
+      <div class="hero-backdrop" aria-hidden="true"></div>
+      <div class="hero-copy">
+        <span class="edition">Built for macOS</span>
+        <h1 id="headline">Your beautiful<br><em>browser.</em></h1>
+        <p>Keep tabs on the side, search from anywhere, and make the space between pages your own.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="https://github.com/Harshhexe/Nova/releases/download/v1.0.0-preview.1/NOVA-mac-arm64.dmg">Download for Mac</a>
+          <a class="button quiet" href="https://the-nova-web.vercel.app/">Try the web dashboard</a>
+        </div>
+        <p class="hero-note">Apple Silicon · macOS 13 or later · Preview</p>
+      </div>
+    </section>
+    <section id="experience" class="experience wrap" aria-label="NOVA browser preview">
+      <div class="experience-frame">
+        <div class="experience-image" role="tabpanel" id="view-panel" aria-labelledby="view-dashboard" tabindex="0">
+          <img id="demo-image" src="./assets/dashboard.webp" width="1280" height="774" alt="NOVA dashboard with a translucent toolbar, vertical sidebar, and a flowing aurora wallpaper." fetchpriority="high">
+        </div>
+        <div class="experience-foot">
+          <div class="experience-tabs" role="tablist" aria-label="Explore NOVA">
+            <button type="button" role="tab" id="view-dashboard" aria-controls="view-panel" aria-selected="true" data-view="dashboard">Dashboard</button>
+            <button type="button" role="tab" id="view-search" aria-controls="view-panel" aria-selected="false" tabindex="-1" data-view="search"><kbd>⌘ K</kbd> Search</button>
+            <button type="button" role="tab" id="view-tabs" aria-controls="view-panel" aria-selected="false" tabindex="-1" data-view="tabs">Tab Overview</button>
+          </div>
+          <p id="demo-caption" aria-live="polite">A home for your favorite sites, with a look that’s yours.</p>
+        </div>
+      </div>
+    </section>
+    <section id="features" class="features wrap">
+      <div class="section-heading reveal">
+        <h2>Less between you<br>and the <em>web.</em></h2>
+        <p>Your tabs, searches, and favorite places stay close, so you can get back to what you came to do.</p>
+      </div>
+      <div class="feature-grid">
+        <article class="feature feature-sidebar reveal">
+          <div class="feature-copy">
+            <h3>Keep what you need in sight.</h3>
+            <p>Tabs sit in a slim vertical rail. Drag up to three sites into Favorites so they’re there the next time you need them.</p>
+          </div>
+          <div class="rail-art" aria-hidden="true">
+            <div class="rail-track"><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="rail-panel"><span></span><span></span><span></span></div>
+            <span class="rail-pin">✦</span>
+          </div>
+        </article>
+        <article class="feature feature-gestures reveal">
+          <div class="feature-copy">
+            <h3>Make room for all your tabs.</h3>
+            <p>Pinch in to see your open tabs float into view. Hover and pinch out to open one. Swipe with two fingers to go back or forward.</p>
+          </div>
+          <div class="gesture-art" aria-hidden="true">
+            <span class="mini-tab a"></span><span class="mini-tab b"></span><span class="mini-tab c"></span>
+            <span class="finger left"></span><span class="finger right"></span>
+          </div>
+        </article>
+        <article class="feature feature-search reveal">
+          <div class="feature-copy">
+            <h3>Find it without leaving the page.</h3>
+            <p>Press <kbd>⌘ K</kbd> for quick search, recent searches, suggestions, and direct links. Type a question, an address, or a calculation.</p>
+          </div>
+          <div class="search-art" aria-hidden="true">
+            <div><span class="glass-icon"></span><span class="query">Where should we go?</span><kbd>esc</kbd></div>
+            <span><i></i><i></i><i></i></span>
+          </div>
+        </article>
+        <article class="feature feature-privacy reveal">
+          <div class="feature-copy">
+            <h3>Keep browsing on your terms.</h3>
+            <p>Open an isolated private window, choose permissions per site, and control ads, trackers, and live suggestions in Settings.</p>
+          </div>
+          <div class="privacy-art" aria-hidden="true">
+            <span></span><span></span><span class="privacy-label">Private window</span>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section id="download" class="download wrap reveal">
+      <div class="download-panel">
+        <img src="./assets/nova.svg" width="56" height="56" alt="">
+        <h2>Make yourself<br>at <em>home.</em></h2>
+        <p>Download the NOVA desktop preview, open the disk image, and drag NOVA into Applications.</p>
+        <a class="button primary" href="https://github.com/Harshhexe/Nova/releases/download/v1.0.0-preview.1/NOVA-mac-arm64.dmg">Download NOVA for Mac</a>
+        <details>
+          <summary>Compatibility and preview notes</summary>
+          <p>Requires Apple Silicon and macOS 13 or later. This preview is ad hoc signed and has not been notarized by Apple. macOS may require approval before opening it.</p>
+          <a href="https://github.com/Harshhexe/Nova/releases/tag/v1.0.0-preview.1">Preview release and checksum</a>
+        </details>
+      </div>
+    </section>
+  </main>
+  <footer class="footer wrap">
+    <a href="#main" class="brand" aria-label="NOVA home"><img src="./assets/nova.svg" width="24" height="24" alt=""><span>NOVA</span></a>
+    <div><a href="https://github.com/Harshhexe/Nova">GitHub</a><a href="https://the-nova-web.vercel.app/">Web dashboard</a></div>
+  </footer>
+</body>
+</html>

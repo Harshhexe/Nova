@@ -1,0 +1,48 @@
+const art = document.querySelector('#art');
+const ambient = document.querySelector('#ambient');
+const title = document.querySelector('#title');
+const artist = document.querySelector('#artist');
+const progress = document.querySelector('#progress');
+const elapsed = document.querySelector('#elapsed');
+const duration = document.querySelector('#duration');
+const toggle = document.querySelector('#toggle');
+let current;
+let dragging = false;
+const time = seconds => {
+  const value = Math.max(0, Math.floor(seconds || 0));
+  const hours = Math.floor(value / 3600);
+  const minutes = Math.floor(value / 60) % 60;
+  return (hours ? `${hours}:${String(minutes).padStart(2, '0')}` : String(minutes)) + `:${String(value % 60).padStart(2, '0')}`;
+};
+const updateTimeline = () => {
+  const position = progress.valueAsNumber;
+  elapsed.textContent = time(position);
+  progress.style.setProperty('--played', `${position / Number(progress.max) * 100}%`);
+};
+const seek = value => {
+  if (current && current.duration > 0) window.mediaPopup.act('media-seek', { id: current.id, time: Math.max(0, Math.min(current.duration, value)) });
+};
+window.mediaPopup.subscribe(media => {
+  current = media;
+  title.textContent = media.title || media.tabTitle;
+  artist.textContent = media.artist || new URL(media.url).hostname;
+  art.src = media.artwork || media.favicon || new URL('/favicon.ico', media.url).href;
+  ambient.src = art.src;
+  progress.disabled = !(media.duration > 0);
+  progress.max = media.duration || 1;
+  if (!dragging) progress.value = media.currentTime;
+  updateTimeline();
+  duration.textContent = media.duration ? time(media.duration) : 'Live';
+  toggle.classList.toggle('playing', media.playing);
+  toggle.setAttribute('aria-label', media.playing ? 'Pause' : 'Play');
+});
+progress.addEventListener('pointerdown', () => { dragging = true; });
+progress.addEventListener('input', updateTimeline);
+progress.addEventListener('change', () => { seek(Number(progress.value)); dragging = false; });
+progress.addEventListener('pointercancel', () => { dragging = false; });
+toggle.addEventListener('click', () => current && window.mediaPopup.act('media-toggle', current.id));
+document.querySelector('#back').addEventListener('click', () => current && seek(current.currentTime - 10));
+document.querySelector('#forward').addEventListener('click', () => current && seek(current.currentTime + 10));
+document.querySelector('#open').addEventListener('click', () => current && window.mediaPopup.act('select', current.id));
+document.addEventListener('mouseenter', () => window.mediaPopup.enter());
+document.addEventListener('mouseleave', () => window.mediaPopup.close());

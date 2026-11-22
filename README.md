@@ -1,148 +1,61 @@
 # NOVA
 
-**Your browser. Your universe.**
+**Your beautiful browser.** NOVA is a Chromium-based browser for macOS with a slim vertical tab rail, search from anywhere, and a customizable start page.
 
-A personal new-tab page with flowing ambient wallpapers, a clock and greeting, colorful favorites, fast Google autocomplete, local notes, and built-in weather.
+[Download the macOS preview](https://github.com/Harshhexe/Nova/releases/tag/v1.0.0-preview.1) · [Explore NOVA](https://harshhexe.github.io/Nova/) · [Open the web dashboard](https://the-nova-web.vercel.app/)
 
-No account required. Your shortcuts and preferences stay on your device.
+![NOVA on macOS with the vertical tab rail, translucent navigation controls, and an aurora dashboard](docs/assets/dashboard.webp)
 
-## Use NOVA with New Tab Redirect
+## Install on macOS
 
-This is the recommended setup if you want to use the [New Tab Redirect extension](https://chromewebstore.google.com/detail/new-tab-redirect/icpgjfneehieebagbmdbhnlpiopdcmna?hl=en-US).
+The preview is built for **Apple Silicon Macs running macOS 13 or later**.
 
-### 1. Open NOVA
+1. Download [NOVA-mac-arm64.dmg](https://github.com/Harshhexe/Nova/releases/download/v1.0.0-preview.1/NOVA-mac-arm64.dmg).
+2. Open the disk image and drag **NOVA** into **Applications**.
+3. Launch NOVA from Applications. The first run asks what to call you and walks through the dashboard, sidebar, and gestures.
 
-Visit **[the-nova-web.vercel.app](https://the-nova-web.vercel.app/)** in Chrome.
+The preview is ad-hoc signed and unnotarized. macOS may block it under your security policy. You can also run NOVA from source using the commands below.
 
-NOVA is already hosted. You do not need Node.js, a terminal, a local server, or NOVA’s standalone extension to use this website.
+## Browse with NOVA
 
-### 2. Set your new-tab URL
+- **Vertical tabs.** Navigate by site icon, drag up to three sites into sidebar Favorites, and choose which controls appear in the sidebar and toolbar.
+- **Search from anywhere.** Press **⌘K** for search, website addresses, recent searches, and live suggestions when enabled.
+- **Trackpad gestures.** Swipe with two fingers to go back or forward. Pinch in to open Tab Overview, then hover over a tab and pinch out to open it. Toggle each gesture in Browser Settings.
+- **Your dashboard.** Pick an animated wallpaper, set your weather city, and organize shortcuts into folders.
+- **Browser essentials.** Use private windows, find-in-page with match navigation, download controls, per-site permissions, saved logins and autofill, or built-in ad and tracker blocking with site exceptions.
+- **Media controls.** Hover over the playing media tile above Settings for artwork, playback controls, and a seekable timeline when the site exposes them.
 
-1. Install [New Tab Redirect](https://chromewebstore.google.com/detail/new-tab-redirect/icpgjfneehieebagbmdbhnlpiopdcmna?hl=en-US).
-2. Open `chrome://extensions`.
-3. Find **New Tab Redirect**, open **Details**, then **Extension options**. You can also access its options from the extension menu.
-4. Set the custom redirect URL to:
-
-   ```text
-   https://the-nova-web.vercel.app/
-   ```
-
-5. Save it, then open a new tab.
-
-New Tab Redirect changes new tabs; it does not change Chrome’s startup pages or homepage. Chrome’s address-bar focus after a redirect is controlled by the browser and the extension.
-
-Use one extension to control your new-tab page. If you previously installed NOVA’s standalone new-tab extension, disable it while using New Tab Redirect.
-
-### 3. Make it yours
-
-On your first visit, NOVA asks for your name, appearance preferences, optional weather city, and shows a short walkthrough. Complete or skip setup once; later visits go straight to your home screen.
-
-Existing users with saved NOVA preferences skip the welcome flow. If you close setup before completing it, it appears again on the next visit.
-
-## Everyday controls
-
-| Action | How |
+| Shortcut | Action |
 | --- | --- |
-| Quick search on new tab | Open a new tab and start typing immediately — search activates automatically with smooth spring motions |
-| Open search | Click the search bar, start typing anywhere on the home screen, or press **Cmd/Ctrl + K** |
-| Navigate suggestions | **↑ / ↓** |
-| Fill a suggestion | **Tab**, **→** at the end of the input, or its fill arrow |
-| Open a result | **Enter** |
-| Alternate current/new-tab action | **Cmd/Ctrl + Enter** |
-| Close a panel | **Escape** |
-| Show favorites | Hover over the bottom shelf or use **Show favorites** |
-| Add a favorite | **Add shortcut** |
-| Edit/remove favorites | Open the shelf, then select **Edit favorites** |
-| Reorder favorites | Drag in edit mode; keyboard users can focus a sortable tile, press **Space**, use arrows, then **Space** to drop |
-| Undo favorite removal | Select **Undo** in the confirmation toast within six seconds |
-| Finish editing | **Done** or **Escape** |
-| Change appearance | **Customize** |
-| Check weather | Select the weather control at the top right |
+| **⌘K** | Open search |
+| **⌘T** | New tab |
+| **⌘⇧N** | New private window |
+| **⌘⇧S** | Toggle sidebar |
+| **⌘⇧\** | Show Tab Overview |
 
-Right-clicking a favorite also opens its editor. Changing its URL automatically updates its website icon and matching color. Manual icon/color choices remain available in the editor.
+### Passkeys in the macOS preview
 
-Search opens with recent NOVA searches. Remove one using its **×** button or remove the list using **Clear history**. Commands such as `/notes`, `/wallpaper`, and `/settings` work while typing.
+The preview cannot use website passkeys saved in Apple Passwords. If GitHub reports partial passkey support, open [GitHub’s passkey sign-in](https://github.com/login?passkey=true) in Safari. To sign in inside NOVA, use your password and an already configured second factor. Each browser has its own session.
 
-Type math expressions (e.g. `24 * 7`) or unit/currency queries (e.g. `100 usd to eur`, `$50 in inr`, `10 km to miles`, `100 f to c`, `500 gb to tb`, `2.5 hours to minutes`) directly in **⌘K** for instant conversion. Press **Enter** on the conversion result to copy it directly to your clipboard.
+NOVA’s saved logins are encrypted locally with Electron’s OS-backed storage. Support for Apple Passwords across websites requires [Apple’s managed browser entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.web-browser.public-key-credential) and an implementation that uses the browser authorization APIs.
 
-## Wallpapers and motion
+## Use the dashboard in Chrome
 
-Choose a bundled atmosphere through **Customize → Wallpaper studio**, or upload your own image.
+Install [New Tab Redirect](https://chromewebstore.google.com/detail/new-tab-redirect/icpgjfneehieebagbmdbhnlpiopdcmna?hl=en-US). In Chrome, open **Extensions → New Tab Redirect → Extension options**, set the redirect URL to `https://the-nova-web.vercel.app/`, and save. Use a single extension to control new tabs.
 
-- Supports JPG, PNG, WebP and AVIF, up to **20 MB**.
-- Uploaded images are optimized locally to fit within **2560 × 1600** pixels.
-- Images stay in your browser’s IndexedDB; they are not sent to a server.
-- Brightness and softness are adjustable.
-- **Interactive canvas shaders:** Choose between **Stardust** (gravitational constellation stars), **Fluid aurora** (pointer-deforming light ribbons), or **Cosmic warp** (interstellar depth drift). Shaders respond organically to pointer movement and clicks.
-- Bundled backgrounds have flowing waves and slow aurora ribbons.
-- Background and canvas motion pause while panels or favorites are open and while the tab is hidden.
-- System **Reduce Motion** preferences disable background animation and freeze canvas motion into a static celestial field.
-- Uploaded photos are static.
+Dashboard shortcuts, folders, and preferences stay in the browser profile under that URL. Uploaded wallpapers are stored locally in IndexedDB. Export your setup from **Customize → Privacy & Data** before clearing site data or moving to a different browser profile. Suggestions and weather use network services when enabled.
 
-The inspiration widget rotates through 31 original, locally bundled NOVA prompts. It changes at local midnight, stays consistent across refreshes that day, and works offline.
+## Run from source
 
-## Weather
+Use Node.js 22 or newer. The desktop build and packaging commands require macOS with Xcode Command Line Tools.
 
-Select the weather control, search for a city, and choose the correct result. NOVA displays current conditions, feels-like temperature, humidity, wind, and a five-day forecast inside the app.
+```sh
+npm ci
+npm run browser       # Build and open the desktop browser
+npm run package:mac   # Build a preview DMG in release/
+npm test              # Run the project tests
+```
 
-The selected city is remembered locally. Forecasts are cached for ten minutes; use the refresh button to request a fresh forecast. NOVA does not request device location access.
+Run `npm run dev` for the Vite dashboard and `npm start` for its local suggestions server. `npm run build` writes the web bundle to `dist/`. Vercel deployments use the serverless handler at `api/suggest.js` as well as the web bundle. `npm run package:extension` builds the standalone new-tab extension.
 
-Weather and city lookup are provided by [Open-Meteo](https://open-meteo.com/). Internet access is required. Its public API is intended for non-commercial use; review the provider’s terms before a commercial release.
-
-## Local data and privacy
-
-NOVA does not have an account system, analytics, or cloud synchronization.
-
-| Data | Storage |
-| --- | --- |
-| Favorites, order, names, URLs, appearance, preferences, notes, tasks, recent searches, setup completion | Browser localStorage |
-| Uploaded wallpaper | Browser IndexedDB |
-| Weather city and forecast cache | Browser localStorage |
-| Preferences when running as NOVA’s standalone extension | Also mirrored to Chrome local storage |
-
-**New Tab Redirect does not store NOVA’s shortcuts.** In redirect mode, NOVA is a normal website, and its data belongs to the URL and Chrome profile you use.
-
-Online features make these requests:
-
-- **Google autocomplete:** typed search queries are sent to Google through NOVA’s suggestion endpoint. Commands, calculator expressions, and recognized website addresses do not trigger autocomplete requests. Disable **Live search suggestions** in Customize to stop them.
-- **Website icons:** a favorite’s website domain is sent to Google’s favicon service. Turn off automatic website appearance for a shortcut to use manual artwork.
-- **Weather:** city searches and selected city coordinates are sent to Open-Meteo when you use the weather panel.
-- **Opening a destination or search:** navigates to that website or your chosen search engine.
-
-The included suggestion server does not log query text or forward your browser cookies. It keeps a bounded, one-minute in-memory suggestion cache.
-
-Clearing site data, removing a browser profile, or clearing extension data can erase your setup. Incognito storage is temporary. Keep periodic JSON exports; they contain your notes, links and searches, so store them privately.
-
-
-## Troubleshooting
-
-**New tabs show “site can’t be reached.”**  
-Check your internet connection and confirm the saved redirect URL is exactly `https://the-nova-web.vercel.app/`. Try opening that URL directly. If the hosted site is unavailable, try again later.
-
-**My shortcuts disappeared after changing the URL.**  
-You probably changed the origin, port, or browser profile. Return to the old URL, export your settings, then import them at the new one. Do not clear the old site’s data first.
-
-**NOVA is still opening another new-tab page.**  
-Check the redirect URL and disable other extensions that override new tabs, including NOVA’s optional standalone extension if you are using redirect mode.
-
-**Changes to source files are not appearing in daily use.**  
-Local source edits do not update the hosted website until a new version is deployed. For a local production build, run `npm run build` again. Development changes are automatically reflected only on the development server.
-
-**Google suggestions are unavailable.**  
-Check your connection and that Live search suggestions are enabled. The hosted deployment must provide `/api/suggest`; if suggestions remain unavailable, that endpoint may need a deployment fix. For local development, `npm start` and `npm run dev` provide it. Local shortcut matching and submitted searches remain usable when live suggestions fail.
-
-**The background is not moving.**  
-Close panels and the favorites shelf. Motion pauses during interaction and in hidden tabs; system Reduce Motion also disables it. Uploaded wallpapers are static.
-
-**Weather cannot load.**  
-Check your connection, search for the city again, or use refresh/retry. Weather depends on Open-Meteo availability.
-
-## Shortcut folders
-
-Choose **New folder** in the favorites shelf, give it a name, and select shortcuts. Open a folder to launch its links; choose **Edit folder & shortcuts** to rename it or update its contents. Selecting a shortcut from another folder moves it here. You can also change a shortcut’s folder in its own editor. Removing a folder returns its shortcuts to the main shelf. Folders and membership are saved locally and included in JSON exports. Search still finds links inside folders.
-
-**Customize → New tab extension** links to New Tab Redirect and displays `https://the-nova-web.vercel.app/` for its redirect setting.
-
-### Vercel autocomplete route
-
-`api/suggest.js` is the Vercel Function entry point for `/api/suggest`, sharing the same handler used in development. Deploy the whole repository, including `api/`, `server/`, and `vercel.json`; uploading only `dist/` omits the function and causes autocomplete requests to return 404. After deployment, verify `/api/suggest?q=hello` returns a JSON array rather than a 404 page.
+The launch site lives in `docs/` and publishes to GitHub Pages. Preview it locally with `python3 -m http.server 4181 --directory docs`.

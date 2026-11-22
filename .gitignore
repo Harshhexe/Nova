@@ -3,3 +3,9 @@ dist/
 *.tsbuildinfo
 nova-extension.zip
 .DS_Store
+
+desktop-dist/
+
+/desktop/native/trackpad.node
+
+/release/

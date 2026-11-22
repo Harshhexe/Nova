@@ -202,3 +202,30 @@ footer .customize{margin-left:auto}
 .settings-section[hidden] {
   display: none;
 }
+
+.desktop-new-tab > header { justify-content: flex-end; }
+
+html.desktop-spotlight,
+html.desktop-spotlight body { background: transparent; }
+.spotlight-overlay:has(.command-panel) {
+  background: rgba(9, 10, 13, .12);
+  backdrop-filter: none;
+}
+.spotlight-overlay .dialog.command-panel {
+  align-self: center;
+  margin-top: 0;
+  isolation: isolate;
+  background: #23252de0;
+  max-width: min(620px, 100%);
+}
+.spotlight-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background-size: 100vw 100vh;
+  background-position: center;
+  filter: blur(20px) brightness(.68);
+  opacity: .64;
+}
