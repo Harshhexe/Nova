@@ -769,7 +769,7 @@ function createPage(pageSession = webSession) {
   return view;
 }
 
-function renderAddressPopup() {
+async function renderAddressPopup() {
   const data = addressPopupData;
   if (!addressPopup || addressPopup.webContents.isDestroyed() || !data) return;
   const [width, height] = window.getContentSize();
@@ -782,17 +782,32 @@ function renderAddressPopup() {
   });
   addressPopup.webContents.send('address-popup:update', data);
   addressPopup.setVisible(true);
+  const view = showing;
+  if (!view || view.webContents.isDestroyed()) return;
+  const bounds = view.getBounds();
+  const popup = addressPopup.getBounds();
+  const x = Math.max(0, popup.x - bounds.x);
+  const y = Math.max(0, popup.y - bounds.y);
+  const captureWidth = Math.min(popup.width, bounds.width - x);
+  const captureHeight = Math.min(popup.height, bounds.height - y);
+  if (captureWidth <= 0 || captureHeight <= 0) return;
+  try {
+    const image = await view.webContents.capturePage({ x, y, width: captureWidth, height: captureHeight }, { stayHidden: true });
+    if (addressPopupData === data && showing === view && !image.isEmpty()) {
+      addressPopup.webContents.send('address-popup:backdrop', image.resize({ width: 96, height: 36 }).toDataURL());
+    }
+  } catch {}
 }
 
 function updateAddressPopup(data) {
-  if (!data || !Array.isArray(data.rows) || !data.rows.length || spotlight ||
+  if (!data || !Array.isArray(data.rows) || !data.rows.length || spotlightVisible ||
       ![data.x, data.y, data.width].every(Number.isFinite)) {
     addressPopupData = undefined;
     addressPopup?.setVisible(false);
     return;
   }
   addressPopupData = { ...data, rows: data.rows.slice(0, 8) };
-  if (addressPopup && !addressPopup.webContents.isLoadingMainFrame()) renderAddressPopup();
+  if (addressPopup && !addressPopup.webContents.isLoadingMainFrame()) void renderAddressPopup();
 }
 
 function createAddressPopup() {

@@ -1,4 +1,5 @@
 const list = document.querySelector('#rows');
+window.addressPopup.backdrop(image => { list.style.setProperty('--page-backdrop', `url("${image}")`); });
 
 window.addressPopup.update(({ rows, selected }) => {
   const items = rows.map(({ title, kind }, index) => {

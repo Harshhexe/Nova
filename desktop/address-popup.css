@@ -1,11 +1,22 @@
 * { box-sizing: border-box; }
 body { margin: 0; color: #f1f2f5; font: 13px -apple-system, BlinkMacSystemFont, sans-serif; }
 #rows {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   display: grid;
   padding: 5px;
   border: 1px solid #ffffff27;
   border-radius: 12px;
-  background: #252731fa;
+  background: #252731;
+}
+#rows::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -24px;
+  background: linear-gradient(#252731a8, #252731a8), var(--page-backdrop, #252731) center / 100% 100%;
+  filter: blur(18px);
 }
 button {
   display: flex;
