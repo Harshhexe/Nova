@@ -54,7 +54,7 @@ function findUpdate(list, installed, arch) {
   return update;
 }
 
-async function download(update, output, signal) {
+async function download(update, output, signal, onProgress) {
   let url = new URL(update.url);
   for (let hop = 0; hop < 4; hop++) {
     if (url.protocol !== 'https:' || url.username || url.password || url.port || !downloadHosts.has(url.hostname)) {
@@ -75,20 +75,22 @@ async function download(update, output, signal) {
         bytes += chunk.length;
         if (bytes > update.size) return callback(new Error('Download exceeds its published size'));
         hash.update(chunk);
+        onProgress(Math.min(99, Math.floor(bytes * 100 / update.size)));
         callback(null, chunk);
       }
     });
     await pipeline(Readable.fromWeb(response.body), verify, createWriteStream(output, { flags: 'wx' }), { signal });
     if (bytes !== update.size || hash.digest('hex') !== update.digest) throw new Error('Download checksum mismatch');
+    onProgress(100);
     return;
   }
   throw new Error('Too many download redirects');
 }
 
-async function stageUpdate(update, work, staged, signal) {
+async function stageUpdate(update, work, staged, signal, onProgress) {
   const disk = join(work, 'NOVA.dmg');
   const mount = join(work, 'mount');
-  await download(update, disk, signal);
+  await download(update, disk, signal, onProgress);
   await mkdir(mount);
   signal.throwIfAborted();
   await exec('/usr/bin/hdiutil', ['attach', '-readonly', '-nobrowse', '-mountpoint', mount, disk]);
@@ -114,6 +116,7 @@ export function createBrowserUpdater({ swapBundles, getWindow, canRestart, prepa
   let checking = false;
   let prompting = false;
   let installing = false;
+  let progress = 0;
   let stopped = false;
   let checkController;
   let installController;
@@ -176,12 +179,17 @@ export function createBrowserUpdater({ swapBundles, getWindow, canRestart, prepa
       checkController?.abort();
       installController = new AbortController();
       installing = true;
+      progress = 0;
       onChange();
       work = await mkdtemp(join(tmpdir(), 'nova-update-'));
       staging = await mkdtemp(join(dirname(bundle), '.nova-update-'));
       const staged = join(staging, 'NOVA.app');
       const signal = AbortSignal.any([installController.signal, AbortSignal.timeout(20 * 60 * 1000)]);
-      await stageUpdate(selected, work, staged, signal);
+      await stageUpdate(selected, work, staged, signal, percent => {
+        if (progress === percent || stopped) return;
+        progress = percent;
+        onChange();
+      });
       await prepareRestart();
       if (stopped || window.isDestroyed()) return;
       signal.throwIfAborted();
@@ -220,7 +228,7 @@ export function createBrowserUpdater({ swapBundles, getWindow, canRestart, prepa
   const initial = setTimeout(() => void check(), 4000);
   const interval = setInterval(() => void check(), 6 * 60 * 60 * 1000);
   return {
-    state: () => update && { version: update.version, installing },
+    state: () => update && { version: update.version, installing, progress },
     install() {
       const window = getWindow();
       if (!update || !window || window.isDestroyed() || prompting || installing || stopped) return;

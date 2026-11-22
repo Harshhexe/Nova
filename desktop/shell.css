@@ -137,6 +137,12 @@ kbd { color: var(--muted); background: #ffffff0a; border: 1px solid var(--line);
 .sidebar-settings { margin-top: auto; display: grid; gap: 5px; }
 .sidebar-update .icon-button { color: #cce9f6; background: #b5dce81a; }
 .sidebar-update .icon-button:hover { background: #b5dce835; }
+.sidebar-update .update-progress {
+  cursor: default;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
 .viewport { position: absolute; inset: var(--toolbar-height) var(--page-gap) var(--page-gap) var(--page-left); border-radius: 9px; overflow: hidden; background: radial-gradient(ellipse at top right, #eaf2ff09, transparent 66%), #0d11140f; }
 .library { height: 100%; overflow: auto; max-width: 940px; padding: clamp(25px, 5vw, 72px); margin: auto; }
 .library-head { display: flex; align-items: center; gap: 16px; margin-bottom: 30px; }

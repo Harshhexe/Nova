@@ -17,7 +17,7 @@ type Site = { origin: string; connection: 'http' | 'https' | 'unverified'; permi
 type BrowserState = {
   privateMode: boolean;
   defaultBrowser: 'default' | 'available' | 'unavailable';
-  update?: { version: string; installing: boolean };
+  update?: { version: string; installing: boolean; progress: number };
   findResult?: { matches: number; active: number };
   savedLogins: SavedLogin[];
   site?: Site;
@@ -710,10 +710,15 @@ function Browser() {
       </div>}
       <div className="sidebar-settings">
         {state.update && <div className="sidebar-update">
-          <IconButton label={state.update.installing ? 'Downloading NOVA update' : `Update NOVA to ${state.update.version}`}
-            disabled={state.update.installing} onClick={() => run('browser-update')}>
-            {state.update.installing ? <RotateCw className="spin" size={16} /> : <ArrowDownToLine size={17} />}
-          </IconButton>
+          {state.update.installing
+            ? <div className="icon-button update-progress" role="progressbar"
+                aria-label="NOVA update download" aria-valuenow={state.update.progress}
+                title={state.update.progress === 100 ? 'Installing NOVA update' : 'Downloading NOVA update'}>
+                {state.update.progress}%
+              </div>
+            : <IconButton label={`Update NOVA to ${state.update.version}`} onClick={() => run('browser-update')}>
+                <ArrowDownToLine size={17} />
+              </IconButton>}
         </div>}
         <IconButton label="Settings" pressed={panel === 'settings'} onClick={() => show(panel === 'settings' ? undefined : 'settings')}><Settings size={17} /></IconButton>
       </div>
