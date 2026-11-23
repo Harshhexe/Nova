@@ -781,6 +781,7 @@ async function renderAddressPopup() {
     height: Math.max(0, Math.min(height - y, 12 + 36 * data.rows.length))
   });
   addressPopup.webContents.send('address-popup:update', data);
+  if (window.contentView.children.at(-1) !== addressPopup) window.contentView.addChildView(addressPopup);
   addressPopup.setVisible(true);
   const view = showing;
   if (!view || view.webContents.isDestroyed()) return;
@@ -800,7 +801,7 @@ async function renderAddressPopup() {
 }
 
 function updateAddressPopup(data) {
-  if (!data || !Array.isArray(data.rows) || !data.rows.length || spotlightVisible ||
+  if (!data || !Array.isArray(data.rows) || !data.rows.length || spotlightVisible || tour?.visible ||
       ![data.x, data.y, data.width].every(Number.isFinite)) {
     addressPopupData = undefined;
     addressPopup?.setVisible(false);
@@ -1608,10 +1609,11 @@ async function launch() {
     if (trusted(event)) updateAddressPopup(data);
   });
   ipcMain.on('address-popup:select', (event, index) => {
-    if (event.sender !== addressPopup?.webContents || !Number.isInteger(index) || !addressPopupData?.rows[index]) return;
+    if (event.sender !== addressPopup?.webContents || !Number.isInteger(index)) return;
+    const row = addressPopupData?.rows[index];
+    if (!row) return;
     updateAddressPopup(null);
-    window.webContents.focus();
-    window.webContents.send('browser:address-selection', index);
+    window.webContents.send('browser:address-selection', row.value);
   });
   ipcMain.on('spotlight:close', event => {
     if (event.sender === spotlight?.webContents && event.senderFrame?.url === spotlightUrl) closeSpotlight();

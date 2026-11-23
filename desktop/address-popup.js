@@ -1,7 +1,14 @@
 const list = document.querySelector('#rows');
 window.addressPopup.backdrop(image => { list.style.setProperty('--page-backdrop', `url("${image}")`); });
 
+let renderedRows = '';
 window.addressPopup.update(({ rows, selected }) => {
+  const nextRows = JSON.stringify(rows);
+  if (renderedRows === nextRows) {
+    Array.from(list.children).forEach((row, index) => row.setAttribute('aria-selected', String(index === selected)));
+    return;
+  }
+  renderedRows = nextRows;
   const items = rows.map(({ title, kind }, index) => {
     const item = document.createElement('button');
     item.type = 'button';

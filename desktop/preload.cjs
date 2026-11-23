@@ -6,7 +6,7 @@ contextBridge.exposeInMainWorld('nova', {
   addressSuggestions: query => ipcRenderer.invoke('browser:address-suggestions', query),
   addressPopup: data => ipcRenderer.send('browser:address-popup', data),
   addressSelection: callback => {
-    const receive = (_event, index) => callback(index);
+    const receive = (_event, value) => callback(value);
     ipcRenderer.on('browser:address-selection', receive);
     return () => ipcRenderer.removeListener('browser:address-selection', receive);
   },

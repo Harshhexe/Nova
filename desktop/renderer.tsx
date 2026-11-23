@@ -42,7 +42,7 @@ declare global {
       act(action: string, value?: unknown): Promise<unknown>;
       addressSuggestions(query: string): Promise<string[]>;
       addressPopup(data: AddressPopup | null): void;
-      addressSelection(callback: (index: number) => void): () => void;
+      addressSelection(callback: (value: string) => void): () => void;
       subscribe(callback: (state: BrowserState) => void): () => void;
       mediaPopupClosed(callback: () => void): () => void;
       expandTabPreview(callback: (point: { x: number; y: number }) => void): () => void;
@@ -402,6 +402,9 @@ function Browser() {
       .slice(0, 5).map(title => ({ title, value: title, kind: 'google' }))
     : [];
   const addressRows = [...localAddressRows, ...googleAddressRows].slice(0, 8);
+  if (!addressRows.length && addressQuery) {
+    addressRows.push({ title: addressQuery, value: addressQuery, kind: 'google' });
+  }
 
   useEffect(() => {
     if (!addressPopupOpen || finding || !state.preferences.liveSuggestions || addressQuery.length < 2) return;
@@ -426,9 +429,7 @@ function Browser() {
     return () => window.removeEventListener('resize', update);
   }, [addressPopupOpen, addressRows, addressIndex, finding, state.sidebar, state.fullscreen]);
 
-  useEffect(() => window.nova.addressSelection(index => {
-    if (addressRows[index]) navigate(addressRows[index].value);
-  }), [addressRows]);
+  useEffect(() => window.nova.addressSelection(navigate), [navigate]);
 
   useEffect(() => () => window.clearTimeout(addressBlurTimer.current), []);
   useEffect(() => {
@@ -597,9 +598,10 @@ function Browser() {
               }
             }}
             onKeyDown={event => {
-              if (finding && event.key === 'Enter') {
+              if (event.key === 'Enter') {
                 event.preventDefault();
-                run('find-next', event.shiftKey ? 'previous' : 'next');
+                if (finding) run('find-next', event.shiftKey ? 'previous' : 'next');
+                else navigate(addressRows[addressIndex]?.value ?? address);
                 return;
               }
               if (!finding && addressRows.length && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
