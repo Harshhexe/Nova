@@ -114,6 +114,7 @@ const extensions = new Map();
 let choosingExtension = false;
 let saveQueue = Promise.resolve();
 let file;
+let queuedSessionData;
 
 function webUrl(input) {
   try {
@@ -437,9 +438,11 @@ async function openTabOverview() {
 }
 
 function publish(persist = true) {
-  if (window && !window.isDestroyed()) window.webContents.send('browser:state', state());
+  const snapshot = window && !window.isDestroyed() ? state() : undefined;
+  if (snapshot) window.webContents.send('browser:state', snapshot);
   if (mediaPopup && !mediaPopup.isDestroyed()) {
-    const media = state().media.find(item => item.playing) ?? state().media[0];
+    const items = (snapshot ?? state()).media;
+    const media = items.find(item => item.playing) ?? items[0];
     if (media) mediaPopup.webContents.send('media-popup:data', media);
     else closeMediaPopup();
   }
@@ -450,10 +453,15 @@ function publish(persist = true) {
     extensions: [...extensions.keys()], decisions, adExceptions: [...adExceptions],
     downloads: downloads.map(({ id, name, progress, status, path }) => ({ id, name, progress, status, path }))
   });
+  if (data === queuedSessionData) return;
+  queuedSessionData = data;
   saveQueue = saveQueue.then(async () => {
     await writeFile(file + '.tmp', data);
     await rename(file + '.tmp', file);
-  }).catch(error => console.error('Could not save browser session:', error));
+  }).catch(error => {
+    if (queuedSessionData === data) queuedSessionData = undefined;
+    console.error('Could not save browser session:', error);
+  });
 }
 
 function setPageBackdrop(top = '', side = '') {
@@ -464,7 +472,8 @@ function setPageBackdrop(top = '', side = '') {
 
 async function refreshPageBackdrop() {
   const captureSide = sidebar && pageBlur;
-  if ((!toolbarBlur && !captureSide) || capturingBackdrop || !showing || fullscreenPage === showing || !window.isFocused() || window.isMinimized()) return;
+  if ((!toolbarBlur && !captureSide) || capturingBackdrop || !showing || fullscreenPage === showing ||
+      spotlightVisible || tour?.visible || !window.isFocused() || window.isMinimized()) return;
   const view = showing;
   const { width, height } = view.getBounds();
   if (!width || !height) return;
@@ -769,7 +778,7 @@ function createPage(pageSession = webSession) {
   return view;
 }
 
-async function renderAddressPopup() {
+async function renderAddressPopup(captureBackdrop = true) {
   const data = addressPopupData;
   if (!addressPopup || addressPopup.webContents.isDestroyed() || !data) return;
   const [width, height] = window.getContentSize();
@@ -780,9 +789,11 @@ async function renderAddressPopup() {
     width: Math.max(0, Math.min(width - x, Math.round(data.width))),
     height: Math.max(0, Math.min(height - y, 12 + 36 * data.rows.length))
   });
-  addressPopup.webContents.send('address-popup:update', data);
+  addressPopup.webContents.send('address-popup:update', { rows: data.rows, selected: data.selected });
   if (window.contentView.children.at(-1) !== addressPopup) window.contentView.addChildView(addressPopup);
   addressPopup.setVisible(true);
+  if (!captureBackdrop) return;
+  addressPopup.webContents.send('address-popup:backdrop', '');
   const view = showing;
   if (!view || view.webContents.isDestroyed()) return;
   const bounds = view.getBounds();
@@ -794,7 +805,7 @@ async function renderAddressPopup() {
   if (captureWidth <= 0 || captureHeight <= 0) return;
   try {
     const image = await view.webContents.capturePage({ x: captureX, y: captureY, width: captureWidth, height: captureHeight }, { stayHidden: true });
-    if (addressPopupData === data && showing === view && !image.isEmpty()) {
+    if (addressPopupData?.backdrop === data.backdrop && showing === view && !image.isEmpty()) {
       addressPopup.webContents.send('address-popup:backdrop', image.resize({ width: 96, height: 36 }).toDataURL());
     }
   } catch {}
@@ -807,8 +818,14 @@ function updateAddressPopup(data) {
     addressPopup?.setVisible(false);
     return;
   }
-  addressPopupData = { ...data, rows: data.rows.slice(0, 8) };
-  if (addressPopup && !addressPopup.webContents.isLoadingMainFrame()) void renderAddressPopup();
+  const rows = data.rows.slice(0, 8);
+  const boundsKey = JSON.stringify([data.x, data.y, data.width, rows.length, backdropRevision]);
+  const rowsKey = JSON.stringify(rows);
+  const previous = addressPopupData;
+  const sameBounds = previous?.boundsKey === boundsKey;
+  if (sameBounds && previous.rowsKey === rowsKey && previous.selected === data.selected) return;
+  addressPopupData = { ...data, rows, boundsKey, rowsKey, backdrop: sameBounds ? previous.backdrop : {} };
+  if (addressPopup && !addressPopup.webContents.isLoadingMainFrame()) void renderAddressPopup(!sameBounds);
 }
 
 function createAddressPopup() {

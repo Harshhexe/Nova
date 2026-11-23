@@ -1,5 +1,8 @@
 const list = document.querySelector('#rows');
-window.addressPopup.backdrop(image => { list.style.setProperty('--page-backdrop', `url("${image}")`); });
+window.addressPopup.backdrop(image => {
+  if (image) list.style.setProperty('--page-backdrop', `url("${image}")`);
+  else list.style.removeProperty('--page-backdrop');
+});
 
 let renderedRows = '';
 window.addressPopup.update(({ rows, selected }) => {
