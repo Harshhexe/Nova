@@ -786,13 +786,13 @@ async function renderAddressPopup() {
   if (!view || view.webContents.isDestroyed()) return;
   const bounds = view.getBounds();
   const popup = addressPopup.getBounds();
-  const x = Math.max(0, popup.x - bounds.x);
-  const y = Math.max(0, popup.y - bounds.y);
-  const captureWidth = Math.min(popup.width, bounds.width - x);
-  const captureHeight = Math.min(popup.height, bounds.height - y);
+  const captureX = Math.max(0, popup.x - bounds.x);
+  const captureY = Math.max(0, popup.y - bounds.y);
+  const captureWidth = Math.min(popup.width, bounds.width - captureX);
+  const captureHeight = Math.min(popup.height, bounds.height - captureY);
   if (captureWidth <= 0 || captureHeight <= 0) return;
   try {
-    const image = await view.webContents.capturePage({ x, y, width: captureWidth, height: captureHeight }, { stayHidden: true });
+    const image = await view.webContents.capturePage({ x: captureX, y: captureY, width: captureWidth, height: captureHeight }, { stayHidden: true });
     if (addressPopupData === data && showing === view && !image.isEmpty()) {
       addressPopup.webContents.send('address-popup:backdrop', image.resize({ width: 96, height: 36 }).toDataURL());
     }
