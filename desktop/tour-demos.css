@@ -159,3 +159,4 @@
 @keyframes demo-key-press { 0%, 24%, 61%, 100% { transform: none; } 35%, 44% { transform: translateY(2px); background: #dce8c9; color: #263222; } }
 .demo-search-float { position: absolute; inset: 48% 12% auto; display: flex; align-items: center; gap: 6px; padding: 8px; border: 1px solid #fff5; border-radius: 7px; background: #2d3441f5; color: #e4e5e2; font-size: 10px; box-shadow: 0 5px 14px #0007; animation: demo-search-in 2.9s ease both; }
 @keyframes demo-search-in { 0%, 35% { opacity: 0; transform: translateY(8px) scale(.95); } 56%, 100% { opacity: 1; transform: none; } }
+.demo-browser-tool { display:grid; place-items:center; min-height:125px; color:#c1f0dd; background:radial-gradient(ellipse at center,#7bcbb840,transparent 64%); }

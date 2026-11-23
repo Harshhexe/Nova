@@ -20,7 +20,8 @@ declare global {
 const chapters = [
   { name: 'Dashboard', title: 'Make your new tab yours.', description: 'Add the sites you visit most and set a wallpaper, clock, and greeting you want to see.' },
   { name: 'Sidebar', title: 'Pin the sites you use most.', description: 'The sidebar holds up to three favorites, your open tabs, and tools like bookmarks, history, and downloads.' },
-  { name: 'Gestures & search', title: 'Gestures and shortcuts.', description: 'See all your tabs, go back or forward, and start a search from any page.' }
+  { name: 'Gestures & search', title: 'Gestures and shortcuts.', description: 'See all your tabs, go back or forward, and start a search from any page.' },
+  { name: 'Browser tools', title: 'Make room for the way you work.', description: 'Add Tray, Spaces, and Split View to either bar. Choose a tool below to see how it works.' }
 ];
 
 function Aurora() {
@@ -188,8 +189,8 @@ export function WelcomeTour() {
         <div className="tour-actions">
           <button className="tour-secondary" type="button" onClick={() => void go(step - 1)}><ArrowLeft size={15} /> Back</button>
           <button className="tour-secondary tour-skip" type="button" onClick={finish}>Skip tour</button>
-          <button className="tour-primary" type="button" onClick={() => step === 4 ? finish() : void go(step + 1)}>
-            {step === 4 ? 'Start browsing' : 'Next'} <ArrowRight size={17} />
+          <button className="tour-primary" type="button" onClick={() => step === chapters.length + 1 ? finish() : void go(step + 1)}>
+            {step === chapters.length + 1 ? 'Start browsing' : 'Next'} <ArrowRight size={17} />
           </button>
         </div>
       </section>}

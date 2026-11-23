@@ -1,20 +1,25 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Command } from 'cmdk';
-import { ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUpRight, Bookmark, CircleAlert, Clock3, Compass, Globe2, GripVertical, House, KeyRound, Layers2, Link2, Minus, PanelLeft, PanelTop, Pause, Pin, Play, Plus, Puzzle, RotateCw, Search, Settings, ShieldCheck, ShieldAlert, StarOff, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowLeftRight, Check, ArrowLeft, ArrowRight, ArrowUpRight, Bookmark, CircleAlert, Clock3, Compass, Globe2, GripVertical, House, Inbox, KeyRound, Layers2, Link2, Minus, PanelLeft, PanelTop, Pause, Pin, Play, Plus, Puzzle, RotateCw, Search, Settings, ShieldCheck, ShieldAlert, StarOff, X } from 'lucide-react';
 import BlurText from './BlurText';
+import { TrayPanel, useTrayDrop, type TrayItem } from './TrayPanel';
 import './shell.css';
 
 type Favorite = { url: string; title: string; favicon?: string };
 type Link = Favorite & { time: number };
 type AddressRow = { title: string; value: string; kind: 'recent' | 'page' | 'google' };
 type AddressPopup = { x: number; y: number; width: number; rows: AddressRow[]; selected: number };
-type Tab = { id: string; title: string; url: string; favicon?: string; loading?: boolean; pinned?: boolean; error?: string };
+type Tab = { sleeping?: boolean; id: string; title: string; url: string; favicon?: string; loading?: boolean; pinned?: boolean; error?: string };
 type PageBounds = { x: number; y: number; width: number; height: number };
 type TabPreviews = { images: Record<string, string>; source?: PageBounds };
 type SavedLogin = { id: string; origin: string; username: string };
 type Site = { origin: string; connection: 'http' | 'https' | 'unverified'; permissions: Record<string, string>; canSetPermissions: boolean; adException: boolean };
 type BrowserState = {
+  spaces: { id: string; name: string; emoji: string; count: number }[];
+  spaceId: string;
+  split?: { ids: string[]; ratio: number };
+  tray: TrayItem[];
   privateMode: boolean;
   defaultBrowser: 'default' | 'available' | 'unavailable';
   update?: { version: string; installing: boolean; progress: number };
@@ -26,6 +31,7 @@ type BrowserState = {
   activeId?: string; tabs: Tab[]; sidebar: boolean; canBack?: boolean; canForward?: boolean; zoom: number; platform: string;
   pageBlur: boolean; toolbarBlur: boolean; searchEngine: string;
   preferences: {
+    sleepTabs: boolean;
     sidebar: string[]; toolbar: string[]; fontSize: number; defaultZoom: number;
     newTabPage: string; restoreTabs: boolean; rememberHistory: boolean; liveSuggestions: boolean; offerSaveLogins: boolean; blockAds: boolean; swipeHistory: boolean; pinchOverview: boolean; pinchOpenTab: boolean; downloadFolder: string;
   };
@@ -34,12 +40,13 @@ type BrowserState = {
   extensions: { path: string; id?: string; name: string; version?: string; error?: string }[];
   history: Link[]; bookmarks: Link[]; favorites: Favorite[]; favoriteLimit: number; downloads: { id: string; name: string; status: string; progress: number; canResume?: boolean; canControl?: boolean }[];
 };
-type Panel = 'bookmarks' | 'history' | 'downloads' | 'commands' | 'tabs' | 'settings' | 'passwords' | 'extensions' | 'site';
+type Panel = 'bookmarks' | 'history' | 'downloads' | 'commands' | 'tabs' | 'settings' | 'passwords' | 'extensions' | 'site' | 'tray' | 'spaces';
 declare global {
   interface Window {
     nova: {
       read(): Promise<BrowserState>;
       act(action: string, value?: unknown): Promise<unknown>;
+      trayFilePath(file: File): string;
       addressSuggestions(query: string): Promise<string[]>;
       addressPopup(data: AddressPopup | null): void;
       addressSelection(callback: (value: string) => void): () => void;
@@ -52,10 +59,10 @@ declare global {
   }
 }
 
-const initial: BrowserState = { privateMode: false, defaultBrowser: 'unavailable', savedLogins: [], tabs: [], sidebar: true, pageBlur: true, toolbarBlur: true, searchEngine: 'google', zoom: 100, platform: '', history: [], bookmarks: [], favorites: [], favoriteLimit: 0, downloads: [],
+const initial: BrowserState = { spaces: [], spaceId: "personal", tray: [], privateMode: false, defaultBrowser: 'unavailable', savedLogins: [], tabs: [], sidebar: true, pageBlur: true, toolbarBlur: true, searchEngine: 'google', zoom: 100, platform: '', history: [], bookmarks: [], favorites: [], favoriteLimit: 0, downloads: [],
   media: [], contentBlocking: 'off',
   extensions: [],
-  preferences: { sidebar: ['bookmarks', 'history', 'downloads'], toolbar: ['back', 'forward', 'reload', 'bookmark', 'copy', 'new-tab', 'tabs'], fontSize: 16, defaultZoom: 100, newTabPage: 'dashboard', restoreTabs: true, rememberHistory: true, liveSuggestions: true, offerSaveLogins: true, blockAds: true, swipeHistory: true, pinchOverview: true, pinchOpenTab: true, downloadFolder: '' }
+  preferences: { sleepTabs: true, sidebar: ['bookmarks', 'history', 'downloads'], toolbar: ['back', 'forward', 'reload', 'bookmark', 'copy', 'new-tab', 'tabs'], fontSize: 16, defaultZoom: 100, newTabPage: 'dashboard', restoreTabs: true, rememberHistory: true, liveSuggestions: true, offerSaveLogins: true, blockAds: true, swipeHistory: true, pinchOverview: true, pinchOpenTab: true, downloadFolder: '' }
 };
 const tabDragType = 'application/x-nova-tab';
 const favoriteDragType = 'application/x-nova-favorite';
@@ -113,10 +120,29 @@ function previewTransform(preview: HTMLElement, bounds: PageBounds) {
   return `translate(${bounds.x - rect.left}px, ${bounds.y - rect.top}px) scale(${bounds.width / rect.width}, ${bounds.height / rect.height})`;
 }
 
-function TabOverview({ tabs, activeId, previews, onSelect, onDismiss }: {
-  tabs: Tab[]; activeId?: string; previews: TabPreviews; onSelect: (id: string) => void; onDismiss: () => void;
+const spaceEmojis = ['🏠', '✨', '💼', '🎨', '📚', '🧪', '🎮', '🎵', '🛠️', '🚀', '🌿', '☕', '📷', '🌙', '🌊', '🧭'];
+
+function EmojiPicker({ value, onChange, label }: { value: string; onChange: (value: string) => void; label: string }) {
+  return <select className="space-emoji-picker" aria-label={label} value={value} onChange={event => onChange(event.target.value)}>
+    {[...new Set([value, ...spaceEmojis])].map(icon => <option key={icon}>{icon}</option>)}
+  </select>;
+}
+
+function SplitDivider({ split, sidebar }: { split: NonNullable<BrowserState['split']>; sidebar: boolean }) {
+  const inset = sidebar ? 60 : 5;
+  return <div className="split-divider" style={{ left: `calc(${split.ratio * 100}vw + ${inset - split.ratio * (inset + 17)}px)` }}>
+    <button className="split-grip" role="separator" aria-label="Resize split" aria-orientation="vertical" aria-valuenow={Math.round(split.ratio*100)} aria-valuemin={25} aria-valuemax={75}
+      onPointerDown={e => e.currentTarget.setPointerCapture(e.pointerId)}
+      onPointerMove={e => { if (e.currentTarget.hasPointerCapture(e.pointerId)) run('split-size', (e.clientX-inset-6)/(innerWidth-inset-17)); }}
+      onKeyDown={e => { if (['ArrowLeft','ArrowRight'].includes(e.key)) { e.preventDefault(); run('split-size',split.ratio+(e.key==='ArrowLeft'?-.05:.05)); } }}/>
+  </div>;
+}
+
+function TabOverview({ tabs, activeId, previews, onSelect, onSplit, onDismiss, splitFrom }: {
+  tabs: Tab[]; activeId?: string; splitFrom?: string; previews: TabPreviews; onSplit: (ids: string[]) => void; onSelect: (id: string) => void; onDismiss: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const [dragOver, setDragOver] = useState('');
   const activePreview = useRef<HTMLSpanElement>(null);
   const closing = useRef(false);
   const source = previews.source;
@@ -169,6 +195,7 @@ function TabOverview({ tabs, activeId, previews, onSelect, onDismiss }: {
   return <dialog ref={dialog} className="spatial-overview" aria-label="Open tabs"
     style={{ '--preview-ratio': source?.width && source.height ? source.width / source.height : 1.6 } as CSSProperties}
     onCancel={event => { event.preventDefault(); void finish(activePreview.current ?? undefined); }}>
+    {tabs.filter(tab => tab.url && !tab.error).length >= 2 && <span className="split-hint"><PanelLeft size={14}/> {splitFrom ? 'Choose a second page for Split View' : 'Drag a page onto another to split'}</span>}
     <button className="spatial-dismiss" type="button" aria-label="Close tab overview" autoFocus
       onClick={() => void finish(activePreview.current ?? undefined)}><X size={18} /></button>
     <div className="spatial-scroll" onClick={event => {
@@ -187,10 +214,26 @@ function TabOverview({ tabs, activeId, previews, onSelect, onDismiss }: {
             const snapshot = previews.images[tab.id];
             return <div key={tab.id} className={'spatial-slot' + (current ? ' current' : '')}
               style={{ left: left + '%', top: top + '%', width: width + '%', height: height + '%', '--arrival': `${Math.min(index, 6) * 22}ms` } as CSSProperties}>
-              <button className="spatial-tab" type="button" title={tab.title} aria-current={current ? 'page' : undefined}
-                onClick={event => void finish(event.currentTarget.querySelector<HTMLElement>('.spatial-preview') ?? undefined, tab.id)}>
+              <button className={'spatial-tab' + (dragOver === tab.id ? ' split-target' : '')} type="button"
+                draggable={Boolean(tab.url && !tab.error)}
+                onDragStart={event => { event.dataTransfer.setData('application/x-nova-split', tab.id); event.dataTransfer.effectAllowed = 'move'; }}
+                onDragOver={event => {
+                  if (!tab.url || tab.error || !event.dataTransfer.types.includes('application/x-nova-split')) return;
+                  event.preventDefault(); setDragOver(tab.id);
+                }}
+                onDragLeave={() => setDragOver('')} onDragEnd={() => setDragOver('')}
+                onDrop={event => {
+                  event.preventDefault(); setDragOver('');
+                  const from = event.dataTransfer.getData('application/x-nova-split');
+                  if (from && from !== tab.id) onSplit([from, tab.id]);
+                }} title={tab.title} aria-current={current ? 'page' : undefined}
+                disabled={Boolean(splitFrom && (tab.id === splitFrom || !tab.url || tab.error))}
+                onClick={event => {
+                  if (splitFrom) onSplit([splitFrom, tab.id]);
+                  else void finish(event.currentTarget.querySelector<HTMLElement>('.spatial-preview') ?? undefined, tab.id);
+                }}>
                 <span ref={current ? activePreview : undefined} className="spatial-preview">
-                  {snapshot ? <img src={snapshot} alt="" /> : <WebsiteIcon url={tab.url} favicon={tab.favicon} />}
+                  {snapshot ? <img draggable={false} src={snapshot} alt="" /> : <WebsiteIcon url={tab.url} favicon={tab.favicon} />}
                 </span>
                 <span className="spatial-title"><WebsiteIcon url={tab.url} favicon={tab.favicon} /><span>{tab.title || 'New tab'}</span></span>
               </button>
@@ -211,7 +254,10 @@ const navigation = [
   { id: 'bookmarks', label: 'Bookmarks', icon: Bookmark },
   { id: 'history', label: 'History', icon: Clock3 },
   { id: 'downloads', label: 'Downloads', icon: ArrowDownToLine },
-  { id: 'passwords', label: 'Passwords', icon: KeyRound }
+  { id: 'passwords', label: 'Passwords', icon: KeyRound },
+  { id: 'tray', label: 'Tray', icon: Inbox },
+  { id: 'spaces', label: 'Spaces', icon: Layers2 },
+  { id: 'split', label: 'Split View', icon: PanelLeft }
 ] as const;
 
 const toolbarOptions = [
@@ -373,7 +419,12 @@ function Browser() {
   const [swipe, setSwipe] = useState<{ direction: 'back' | 'forward' }>();
   const [mediaOpen, setMediaOpen] = useState(false);
   const [pageBackdrop, setPageBackdrop] = useState({ top: '', side: '' });
+  const [spaceName, setSpaceName] = useState('');
+  const [emoji, setEmoji] = useState('✨');
+  const [chooseSplit, setChooseSplit] = useState(false);
+  const currentSpace = state.spaces.find(item => item.id === state.spaceId);
   const [panel, setPanel] = useState<Panel>();
+  const trayDrop = useTrayDrop(() => { stopFavoriteDrag(); show('tray'); });
   const [settingsSection, setSettingsSection] = useState<typeof settingsSections[number]['id']>();
   const selectedSettings = settingsSections.find(section => section.id === settingsSection);
   const [address, setAddress] = useState('');
@@ -462,7 +513,8 @@ function Browser() {
     run('save-favorite', { index, tabId, url });
   }
 
-  function show(next?: Panel) {
+  function show(next?: Panel, splitPicker = false) {
+    setChooseSplit(splitPicker);
     setAddressPopupOpen(false);
     window.nova.addressPopup(null);
     setMediaOpen(false);
@@ -473,6 +525,21 @@ function Browser() {
     if (next === 'settings') setSettingsSection(undefined);
     run('panel', next === 'tabs' ? next : !!next);
   }
+  function navigationButton(id: string, size: number) {
+    const control = navigation.find(item => item.id === id);
+    if (!control || (id === 'tray' && state.privateMode)) return null;
+    if (control.id === 'split') return <IconButton key={id} label={state.split ? 'Exit Split View' : 'Split View'}
+      pressed={Boolean(state.split)} disabled={!state.split && (!tab?.url || Boolean(tab.error) || !state.tabs.some(item => item.id !== state.activeId && item.url && !item.error))}
+      onClick={() => state.split ? run('split-end') : show('tabs', true)}><PanelLeft size={size}/></IconButton>;
+    const label = control.id === 'spaces' ? 'Spaces · ' + (currentSpace?.name ?? 'Personal') : control.label;
+    if (control.id === 'tray') return <button key={id} type="button" aria-label={label} title={label} aria-pressed={panel === 'tray'}
+      className={'icon-button tray-sidebar' + (trayDrop.dragging ? ' drop-ready' : '')}
+      {...trayDrop.dropProps} onClick={() => show(panel === 'tray' ? undefined : 'tray')}><Inbox size={size}/></button>;
+    return <IconButton key={id} label={label} pressed={panel === control.id} onClick={() => show(panel === control.id ? undefined : control.id)}>
+      {control.id === 'spaces' ? <span className="space-emoji" aria-hidden="true">{currentSpace?.emoji ?? '🏠'}</span> : <control.icon size={size}/>}
+    </IconButton>;
+  }
+
   function navigate(url: string) {
     if (!url.trim()) return;
     show();
@@ -548,7 +615,7 @@ function Browser() {
       {!state.sidebar && <div className="sidebar-toggle">
         <IconButton label="Show sidebar" onClick={() => run('sidebar', true)}><PanelLeft size={16} /></IconButton>
       </div>}
-      <div className="toolbar-content" style={{ '--toolbar-actions-width': `${prefs.toolbar.filter(id => !['back', 'forward', 'reload'].includes(id)).length * 29 + 10}px` } as CSSProperties}>
+      <div className="toolbar-content" style={{ '--toolbar-actions-width': `${prefs.toolbar.filter(id => !['back', 'forward', 'reload'].includes(id)).length * 29 + 10 + (state.split ? 58 : 0)}px` } as CSSProperties}>
         <div className="toolbar-group history-controls" role="group" aria-label="Page navigation">
           {prefs.toolbar.filter(id => id === 'back' || id === 'forward').map(id => id === 'back'
             ? <IconButton key={id} label="Back" disabled={!state.canBack} onClick={() => run('back')}><ArrowLeft size={16} /></IconButton>
@@ -633,13 +700,16 @@ function Browser() {
           </span>
         </form>
         <div className="toolbar-group tab-controls" role="group" aria-label="Page and tab actions">
+          {state.split && <>
+            <IconButton label="Swap split panes" onClick={() => run('split-swap')}><ArrowLeftRight size={16}/></IconButton>
+            <IconButton label="Exit split view" onClick={() => run('split-end')}><X size={16}/></IconButton>
+          </>}
           {prefs.toolbar.map(id => {
             if (id === 'bookmark') return <IconButton key={id} label={saved ? 'Remove bookmark' : 'Bookmark page'} pressed={saved} disabled={!tab?.url} onClick={() => run('bookmark')}><Bookmark size={16} fill={saved ? 'currentColor' : 'none'} /></IconButton>;
             if (id === 'copy') return <IconButton key={id} label="Copy page link" disabled={!tab?.url} onClick={() => run('copy')}><Link2 size={16} /></IconButton>;
             if (id === 'new-tab') return <IconButton key={id} label="New tab" onClick={() => { show(); run('new'); setFocusAddress(true); }}><Plus size={17} /></IconButton>;
             if (id === 'tabs') return <IconButton key={id} label="Open tabs" onClick={() => show('tabs')}><Layers2 size={16} /></IconButton>;
-            const control = navigation.find(item => item.id === id);
-            return control && <IconButton key={id} label={control.label} pressed={panel === control.id} onClick={() => show(panel === control.id ? undefined : control.id)}><control.icon size={16} /></IconButton>;
+            return navigationButton(id, 16);
           })}
         </div>
       </div>
@@ -678,24 +748,21 @@ function Browser() {
       </div>}
       <div className="vertical-tabs" aria-label="Open tabs">
         {orderedTabs.map(item => <div className={'tab ' + (item.id === state.activeId ? 'selected' : '')} key={item.id}>
-          <button className="tab-label" aria-current={item.id === state.activeId ? 'page' : undefined} onClick={() => select(item.id)} title={item.title || host(item.url)} aria-label={item.title || host(item.url)}
+          <button className="tab-label" aria-current={item.id === state.activeId ? 'page' : undefined} onClick={() => select(item.id)} title={(item.sleeping ? 'Sleeping · ' : '') + (item.title || host(item.url))} aria-label={item.title || host(item.url)}
             draggable={!!item.url} onDragStart={event => {
               if (!item.url) { event.preventDefault(); return; }
               setShowFavoriteSlots(true);
               event.dataTransfer.effectAllowed = 'copy';
               event.dataTransfer.setData(tabDragType, item.id);
             }} onDragEnd={stopFavoriteDrag}>
-            {item.loading ? <RotateCw className="spin" size={13} /> : <WebsiteIcon url={item.url} favicon={item.favicon} pinned={item.pinned} />}
+            {item.sleeping ? <span className="sleep-indicator">z</span> : null}{item.loading ? <RotateCw className="spin" size={13} /> : <WebsiteIcon url={item.url} favicon={item.favicon} pinned={item.pinned} />}
           </button>
           <IconButton label={'Close ' + item.title} onClick={() => run('close', item.id)}><X size={13} /></IconButton>
         </div>)}
         <IconButton label="New tab" onClick={() => { show(); run('new'); setFocusAddress(true); }}><Plus size={18} /></IconButton>
       </div>
       <div className="sidebar-library" role="group" aria-label="Library">
-        {prefs.sidebar.map(id => {
-          const control = navigation.find(item => item.id === id);
-          return control && <IconButton key={id} label={control.label} pressed={panel === control.id} onClick={() => show(panel === control.id ? undefined : control.id)}><control.icon size={17} /></IconButton>;
-        })}
+        {prefs.sidebar.map(id => navigationButton(id, 17))}
       </div>
       {media && <div className="media-anchor" onPointerEnter={() => { setMediaOpen(true); run('media-expand', true); }}
         onPointerLeave={() => { setMediaOpen(false); run('media-expand', false); }}
@@ -726,6 +793,24 @@ function Browser() {
       </div>
     </aside>}
     <main className="viewport">
+      {state.split && !panel && <SplitDivider split={state.split} sidebar={state.sidebar}/>}
+      {panel === 'spaces' && <section className="library space-library">
+        <header className="library-head"><div className="library-symbol"><Layers2/></div><h1 className="library-title">Spaces</h1><IconButton label="Close spaces" onClick={() => show()}><X size={18}/></IconButton></header>
+        <div className="space-grid">{state.spaces.map((space, index) => <button key={space.id} className="space-tile" aria-pressed={state.spaceId === space.id}
+          style={{'--space-hue': (index * 73 + 168) % 360} as CSSProperties}
+          onClick={() => { setPanel(undefined); run('space-select', space.id); }}>
+          <span className="space-emoji" aria-hidden="true">{space.emoji}</span><span className="space-info"><strong>{space.name}</strong><small>{space.count} {space.count === 1 ? 'tab' : 'tabs'}</small></span>{state.spaceId === space.id && <Check size={16}/>}
+        </button>)}</div>
+        {currentSpace && <label className="space-emoji-setting">Icon for {currentSpace.name}
+          <EmojiPicker value={currentSpace.emoji} onChange={value => run('space-emoji', { id: currentSpace.id, emoji: value })} label="Current Space emoji"/>
+        </label>}
+        <form className="space-create" onSubmit={event => {
+          event.preventDefault(); if (!spaceName.trim()) return;
+          setPanel(undefined); run('space-new', { name: spaceName, emoji }); setSpaceName('');
+        }}><EmojiPicker value={emoji} onChange={setEmoji} label="New Space emoji"/><input aria-label="Space name" placeholder="Name a new space" maxLength={40} value={spaceName} onChange={event => setSpaceName(event.target.value)}/>
+        <button disabled={!spaceName.trim()}><Plus size={16}/> Create space</button></form>
+      </section>}
+      {panel === 'tray' && <TrayPanel items={state.tray} drop={trayDrop} onClose={() => show()} />}
       {panel === 'settings' && <section className="library browser-settings" aria-labelledby="browser-settings-heading">
         <header className="library-head">
           {selectedSettings
@@ -761,6 +846,8 @@ function Browser() {
             </label>
           </>}
           {settingsSection === 'browser' && <>
+            <label className="setting-row"><span><strong>Sleeping tabs</strong><small>Release memory after 15 minutes of inactivity. Select a sleeping tab to reload it.</small></span>
+              <input type="checkbox" checked={prefs.sleepTabs} onChange={e => run('preference', { key: 'sleepTabs', value: e.target.checked })}/></label>
             <h2 className="settings-group-title">Appearance</h2>
             <label className="setting-row">
               <span><strong>Page font size</strong><small>Changes the base text size on websites. Some sites use fixed sizes.</small></span>
@@ -904,7 +991,7 @@ function Browser() {
           </div>)}
         </div>
       </section>}
-      {panel && !paletteOpen && panel !== 'tabs' && panel !== 'settings' && panel !== 'passwords' && panel !== 'extensions' && panel !== 'site' && <section className="library">
+      {panel && !paletteOpen && panel !== 'tabs' && panel !== 'settings' && panel !== 'passwords' && panel !== 'extensions' && panel !== 'site' && panel !== 'spaces' && panel !== 'tray' && <section className="library">
         <header className="library-head">
           <div className="library-symbol">{panel === 'history' ? <Clock3 /> : panel === 'downloads' ? <ArrowDownToLine /> : <Bookmark />}</div>
           <div className="library-title" role="heading" aria-level={1}><BlurText text={panel[0].toUpperCase() + panel.slice(1)} trigger="load" blur={5} distance={6} /></div>
@@ -934,7 +1021,8 @@ function Browser() {
       {!panel && tab?.error && <div className="page-error"><CircleAlert size={32}/><h1>This page couldn’t load</h1><p>{tab.error}</p><button className="text-button" onClick={() => run('reload')}>Try again</button></div>}
     </main>
     {panel === 'tabs' && state.tabPreviews && <TabOverview
-      tabs={orderedTabs} activeId={state.activeId} previews={state.tabPreviews}
+      splitFrom={chooseSplit ? state.activeId : undefined} tabs={orderedTabs} activeId={state.activeId} previews={state.tabPreviews}
+      onSplit={ids => { setPanel(undefined); run('split', ids); }}
       onDismiss={() => show()}
       onSelect={id => {
         setPanel(undefined);
@@ -953,7 +1041,7 @@ function Browser() {
           <Command.Item onSelect={() => { show(); run('new'); }}><Plus size={16}/> New tab <kbd>{hotkey}T</kbd></Command.Item>
           <Command.Item onSelect={() => { show(); run('reopen'); }}><RotateCw size={16}/> Reopen closed tab <kbd>{hotkey}⇧T</kbd></Command.Item>
           <Command.Item onSelect={() => { show(); run('sidebar'); }}><PanelLeft size={16}/> {state.sidebar ? 'Hide sidebar' : 'Show sidebar'}</Command.Item>
-          {navigation.map(({ id, label, icon: Icon }) => <Command.Item key={id} onSelect={() => show(id)}><Icon size={16}/> Open {label.toLowerCase()}</Command.Item>)}
+          {navigation.filter(item => item.id !== 'tray' || !state.privateMode).map(({ id, label, icon: Icon }) => <Command.Item key={id} onSelect={() => id === 'split' ? show('tabs', Boolean(tab?.url)) : show(id)}><Icon size={16}/> Open {label.toLowerCase()}</Command.Item>)}
           <Command.Item onSelect={() => { show(); run('pin'); }}><Pin size={16}/> {tab?.pinned ? 'Unpin tab' : 'Pin tab'}</Command.Item>
           {tab?.url && <>
             <Command.Item onSelect={() => { show(); run('copy'); }}><Link2 size={16}/> Copy page link</Command.Item>

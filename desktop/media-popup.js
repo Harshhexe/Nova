@@ -6,6 +6,8 @@ const progress = document.querySelector('#progress');
 const elapsed = document.querySelector('#elapsed');
 const duration = document.querySelector('#duration');
 const toggle = document.querySelector('#toggle');
+const pip = document.querySelector('#pip');
+pip.addEventListener('click', () => current && window.mediaPopup.act('media-pip', current.id));
 let current;
 let dragging = false;
 const time = seconds => {
@@ -24,6 +26,7 @@ const seek = value => {
 };
 window.mediaPopup.subscribe(media => {
   current = media;
+  pip.hidden = !media.video;
   title.textContent = media.title || media.tabTitle;
   artist.textContent = media.artist || new URL(media.url).hostname;
   art.src = media.artwork || media.favicon || new URL('/favicon.ico', media.url).href;

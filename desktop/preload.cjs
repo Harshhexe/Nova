@@ -1,8 +1,9 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('nova', {
   read: () => ipcRenderer.invoke('browser:read'),
   act: (action, value) => ipcRenderer.invoke('browser:act', action, value),
+  trayFilePath: file => webUtils.getPathForFile(file),
   addressSuggestions: query => ipcRenderer.invoke('browser:address-suggestions', query),
   addressPopup: data => ipcRenderer.send('browser:address-popup', data),
   addressSelection: callback => {

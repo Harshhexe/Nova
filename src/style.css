@@ -229,3 +229,63 @@ html.desktop-spotlight body { background: transparent; }
   filter: blur(20px) brightness(.68);
   opacity: .64;
 }
+
+@property --time-sky { syntax: '<color>'; inherits: false; initial-value: #090e2a; }
+@property --time-horizon { syntax: '<color>'; inherits: false; initial-value: #19285a; }
+@property --time-accent { syntax: '<color>'; inherits: false; initial-value: #765bc5; }
+
+.time-wallpaper {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 80% 22%, color-mix(in srgb, var(--time-accent) 82%, transparent), transparent 67%),
+    linear-gradient(130deg, var(--time-sky), var(--time-horizon) 72%, var(--time-sky));
+  transition: --time-sky 2s ease, --time-horizon 2s ease, --time-accent 2s ease;
+}
+
+.time-wallpaper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: calc(var(--time-stars) * .6);
+  background:
+    radial-gradient(circle at 21px 24px, #d8e9ff 0 1px, transparent 1.5px) 12px 8px / 233px 179px,
+    radial-gradient(circle at 52px 17px, #ffffffbc 0 1px, transparent 1.6px) 0 0 / 173px 137px,
+    radial-gradient(circle at 43px 33px, #bacfff99 0 .7px, transparent 1.4px) 28px 11px / 109px 151px;
+  transition: opacity 2s ease;
+}
+
+.time-wallpaper-colors {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 18px 0 12px;
+  padding: 0;
+  border: 0;
+}
+
+.time-wallpaper-colors legend { margin-bottom: 8px; font-size: 12px; }
+.time-wallpaper-colors .time-color {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid #ffffff30;
+  border-radius: 8px;
+  font-size: 11px;
+}
+.time-wallpaper-colors input[type='color'] {
+  width: 27px;
+  height: 25px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .time-wallpaper, .time-wallpaper::after { transition: none; }
+}

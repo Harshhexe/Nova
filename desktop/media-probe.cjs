@@ -17,7 +17,7 @@ function report() {
   const data = media ? {
     title: metadata?.title || document.title,
     artist: metadata?.artist || '',
-    artwork,
+    artwork, video: media instanceof HTMLVideoElement,
     playing: !media.paused && !media.ended,
     currentTime: Number.isFinite(media.currentTime) ? media.currentTime : 0,
     duration: Number.isFinite(media.duration) ? media.duration : 0

@@ -6,55 +6,70 @@ const views = {
   },
   search: {
     image: './assets/search.webp',
-    alt: 'NOVA’s quick search overlay with a list of matching sites and suggestions.',
+    alt: 'NOVA’s quick search overlay showing an instant calculation.',
     caption: 'Press ⌘K to open quick search over the page you’re on.'
   },
   tabs: {
     image: './assets/tabs.webp',
-    alt: 'Tab Overview with three open pages arranged as floating previews.',
+    alt: 'Tab Overview with open pages arranged as floating previews.',
     caption: 'Pinch in to see every open tab together.'
+  },
+  wallpaper: {
+    image: './assets/wallpaper.webp',
+    alt: 'Wallpaper Studio showing four time-of-day color controls.',
+    caption: 'Choose a wallpaper or let the colors shift with the time of day.'
+  },
+  tray: {
+    image: './assets/tray.webp',
+    alt: 'Tray with a saved link and a text snippet.',
+    caption: 'Keep files, links, and snippets in reach.'
+  },
+  settings: {
+    image: './assets/settings.webp',
+    alt: 'NOVA settings with controls for the browser, sidebar, and top bar.',
+    caption: 'Arrange the browser around the way you work.'
   }
 };
 
 const tabs = [...document.querySelectorAll('[role="tab"]')];
 const panel = document.querySelector('#view-panel');
 const caption = document.querySelector('#demo-caption');
+const image = panel.querySelector('img');
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
-let requestedView = 0;
+image.addEventListener('load', () => {
+  if (reduceMotion.matches) return;
+  image.animate([{ opacity: .45 }, { opacity: 1 }], {
+    duration: 280,
+    easing: 'ease-out'
+  });
+});
+image.addEventListener('error', () => {
+  caption.textContent = 'This preview couldn’t load. Select the tab to try again.';
+});
 
-async function showView(tab) {
+function showView(tab) {
   const view = views[tab.dataset.view];
-  if (!view) return;
-  const request = ++requestedView;
-  const next = new Image(1280, 774);
-  next.alt = view.alt;
-  next.src = view.image;
-  try { await next.decode(); } catch { return; }
-  if (request !== requestedView) return;
-  const previous = panel.querySelector('img');
   for (const item of tabs) {
     item.setAttribute('aria-selected', String(item === tab));
     item.tabIndex = item === tab ? 0 : -1;
   }
   panel.setAttribute('aria-labelledby', tab.id);
   caption.textContent = view.caption;
-  panel.replaceChildren(next);
-  if (!reduceMotion.matches && previous?.src !== next.src) {
-    next.animate([{ opacity: .5, transform: 'scale(.993)' }, { opacity: 1, transform: 'none' }], {
-      duration: 310, easing: 'cubic-bezier(.2,.8,.2,1)'
-    });
+  image.alt = view.alt;
+  if (image.getAttribute('src') !== view.image || (image.complete && !image.naturalWidth)) {
+    image.src = view.image;
   }
 }
 
 for (const [index, tab] of tabs.entries()) {
-  tab.addEventListener('click', () => void showView(tab));
+  tab.addEventListener('click', () => showView(tab));
   tab.addEventListener('keydown', event => {
     const offsets = { ArrowRight: 1, ArrowLeft: -1, Home: -index, End: tabs.length - 1 - index };
     if (!Object.hasOwn(offsets, event.key)) return;
     event.preventDefault();
     const next = tabs[(index + offsets[event.key] + tabs.length) % tabs.length];
     next.focus();
-    void showView(next);
+    showView(next);
   });
 }
 

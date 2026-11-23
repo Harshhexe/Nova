@@ -1,23 +1,32 @@
 import { useState } from 'react';
-import { ArrowLeft, ArrowRight, Bookmark, Clock3, Download, Folder, Globe2, Layers2, MousePointer2, Plus, RotateCcw, Search, Settings2, Star } from 'lucide-react';
+import { ArrowLeftRight, Moon, PictureInPicture2, ArrowLeft, ArrowRight, Bookmark, Clock3, Download, Folder, Globe2, Layers2, MousePointer2, Plus, RotateCcw, Search, Settings2, Star } from 'lucide-react';
 
-type DemoId = 'favorites' | 'customize' | 'pin' | 'tools' | 'history' | 'overview' | 'expand' | 'search';
+const toolIcons = { tray: Folder, spaces: Layers2, split: ArrowLeftRight, pip: PictureInPicture2, sleep: Moon };
+
+type Tool = keyof typeof toolIcons;
+type DemoId = Tool | 'favorites' | 'customize' | 'pin' | 'tools' | 'history' | 'overview' | 'expand' | 'search';
 
 const demos = {
   favorites: { label: 'Favorites', text: 'Click Show favorites to open the shelf. Use + to add a shortcut or a folder.' },
-  customize: { label: 'Customize', text: 'Click Customize to change your wallpaper, clock, and greeting.' },
+  customize: { label: 'Customize', text: 'Click Customize to choose a wallpaper, including one that changes with the time of day, and adjust your clock and greeting.' },
   pin: { label: 'Pin a site', text: 'Grab a tab and drop it in a dashed favorite slot. Your pinned site stays even after you close the tab.' },
   tools: { label: 'Sidebar tools', text: 'Use the sidebar to switch tabs or open bookmarks, history, and downloads. Choose which icons appear in Sidebar Settings.' },
   history: { label: 'Back / forward', text: 'Swipe right with two fingers to go back, or left to go forward. Lift your fingers to navigate.' },
   overview: { label: 'Show tabs', text: 'Pinch two fingers together to see all your open tabs.' },
   expand: { label: 'Open a tab', text: 'Hover over a preview, then spread two fingers apart to open that tab.' },
-  search: { label: 'Search', text: 'Press the search shortcut to open NOVA search over the page you’re on.' }
+  search: { label: 'Search', text: 'Press the search shortcut to open NOVA search over the page you’re on.' },
+  tray: { label: 'Tray', text: 'Drop files, links, and text onto Tray to keep them handy.' },
+  spaces: { label: 'Spaces', text: 'Create a Space with its own emoji, tabs, favorites, and wallpaper.' },
+  split: { label: 'Split View', text: 'Open two pages side by side and drag the divider to resize them.' },
+  pip: { label: 'Picture in Picture', text: 'Right-click a supported video to float it above other windows.' },
+  sleep: { label: 'Sleeping tabs', text: 'Eligible background tabs release memory after 15 minutes and reload when you select them.' }
 } satisfies Record<DemoId, { label: string; text: string }>;
 
 const chapterDemos: DemoId[][] = [
   ['favorites', 'customize'],
   ['pin', 'tools'],
-  ['history', 'overview', 'expand', 'search']
+  ['history', 'overview', 'expand', 'search'],
+  ['tray', 'spaces', 'split', 'pip', 'sleep']
 ];
 
 function Pointer({ className = '' }: { className?: string }) {
@@ -109,7 +118,9 @@ export function TourDemos({ chapter, mac }: { chapter: number; mac: boolean }) {
         ? <DashboardDemo kind={selection} />
         : selection === 'pin' || selection === 'tools'
           ? <SidebarDemo kind={selection} />
-          : <GestureDemo kind={selection} mac={mac} />}
+          : selection === 'history' || selection === 'overview' || selection === 'expand' || selection === 'search'
+            ? <GestureDemo kind={selection} mac={mac} />
+            : <div className="demo-browser-tool">{(() => { const Icon = toolIcons[selection]; return <Icon size={44}/>; })()}</div>}
     </div>
     <div className="tour-demo-caption">
       <p>{details}</p>

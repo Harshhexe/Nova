@@ -13,6 +13,7 @@ import { passwordVault, fillLogin } from './credentials.mjs';
 import { suggestionsHandler } from '../server/suggestions.mjs';
 import { createContentBlocker } from './content-blocker.mjs';
 import { createBrowserUpdater } from './browser-updates.mjs';
+import { openTrayStore } from './tray.mjs';
 
 const privateMode = app.commandLine.hasSwitch('nova-private');
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -62,6 +63,13 @@ let tour;
 let tourCompleted = true;
 let webSession;
 let activeId;
+let spaces = [{ id: 'personal', name: 'Personal', emoji: '🏠' }];
+let spaceId = 'personal';
+let split;
+let secondaryView;
+const spaceTabs = () => tabs.filter(tab => tab.spaceId === spaceId);
+const spaceHome = () => spaceId === 'personal' ? startUrl : startUrl + '?space=' + encodeURIComponent(spaceId);
+
 let showing;
 let mediaExpanded = false;
 let mediaPopup;
@@ -78,15 +86,15 @@ let pageBlur = true;
 let toolbarBlur = true;
 let searchEngine = Object.hasOwn(searchEngines, app.commandLine.getSwitchValue('nova-private-engine'))
   ? app.commandLine.getSwitchValue('nova-private-engine') : 'google';
-const extraIcons = ['bookmarks', 'history', 'downloads', 'passwords'];
+const extraIcons = ['bookmarks', 'history', 'downloads', 'passwords', 'tray', 'spaces', 'split'];
 const iconDefaults = {
-  sidebar: ['bookmarks', 'history', 'downloads'],
+  sidebar: ['bookmarks', 'history', 'downloads', 'tray', 'spaces'],
   toolbar: ['back', 'forward', 'reload', 'bookmark', 'copy', 'new-tab', 'tabs']
 };
 function defaultPreferences() {
   return {
     ...iconDefaults, fontSize: 16, defaultZoom: 100, newTabPage: 'dashboard',
-    restoreTabs: !privateMode, rememberHistory: !privateMode, liveSuggestions: !privateMode, offerSaveLogins: !privateMode, blockAds: app.commandLine.getSwitchValue('nova-private-block-ads') !== 'false', swipeHistory: true, pinchOverview: true, pinchOpenTab: true, downloadFolder: app.getPath('downloads')
+    sleepTabs: true, restoreTabs: !privateMode, rememberHistory: !privateMode, liveSuggestions: !privateMode, offerSaveLogins: !privateMode, blockAds: app.commandLine.getSwitchValue('nova-private-block-ads') !== 'false', swipeHistory: true, pinchOverview: true, pinchOpenTab: true, downloadFolder: app.getPath('downloads')
   };
 }
 let preferences;
@@ -102,6 +110,7 @@ let favorites = [];
 let downloads = [];
 const downloadItems = new Map();
 let decisions = {};
+const deviceTabs = new WeakSet();
 let adExceptions = new Set();
 let vault;
 let loginPrompts;
@@ -114,6 +123,7 @@ const extensions = new Map();
 let choosingExtension = false;
 let saveQueue = Promise.resolve();
 let file;
+let tray;
 let queuedSessionData;
 
 function webUrl(input) {
@@ -281,12 +291,29 @@ async function autofillLogin(contents, id, origin) {
   }
 }
 
+async function togglePictureInPicture(frame) {
+  try {
+    await frame.executeJavaScript(`(async () => {
+      if (document.pictureInPictureElement) return document.exitPictureInPicture();
+      const videos = [...document.querySelectorAll('video')].filter(video => video.readyState && !video.disablePictureInPicture);
+      const video = videos.find(video => !video.paused) ?? videos[0];
+      if (!document.pictureInPictureEnabled || !video) throw Error();
+      await video.requestPictureInPicture();
+    })()`, true);
+  } catch {
+    if (window && !window.isDestroyed()) void dialog.showMessageBox(window, { message: 'Picture in Picture is unavailable for this video.' });
+  }
+}
+
 function pageContextMenu(contents, params) {
   if (contents !== showing?.webContents || tour) return;
   const link = webUrl(params.linkURL);
   const image = params.mediaType === 'image' && webUrl(params.srcURL);
   const origin = secureOrigin(contents.getURL());
   const menu = [];
+  if (params.mediaType === 'video') menu.push({
+    label: 'Picture in Picture', click: () => togglePictureInPicture(params.frame ?? contents.mainFrame)
+  });
   if (link) menu.push(
     { label: 'Open Link in New Tab', click: () => newTab(link) },
     { label: 'Open Link in Private Window', click: () => void openPrivateWindow(link) },
@@ -316,6 +343,11 @@ function pageContextMenu(contents, params) {
     );
   }
   if (!menu.length) {
+    const peers = spaceTabs().filter(item => item.id !== activeId && item.url && !item.error);
+    if (peers.length) menu.push({ label: 'Split View with', submenu: peers.map(peer => ({
+      label: peer.title, click: () => act('split', [activeId, peer.id])
+    })) });
+    if (split) menu.push({ label: 'Exit Split View', click: () => act('split-end') });
     const current = state();
     menu.push(
       { label: 'Back', enabled: current.canBack, click: () => act('back') },
@@ -349,12 +381,15 @@ const showingTourDashboard = () => Boolean(tour && tour.step >= 2);
 const sidebarVisible = () => sidebar || showingTourDashboard();
 
 function state() {
+  const counts = new Map();
+  for (const tab of tabs) counts.set(tab.spaceId, (counts.get(tab.spaceId) ?? 0) + 1);
   const current = active();
   const navigation = current?.url ? current.view?.webContents.navigationHistory : undefined;
   const origin = current?.url ? siteOrigin(current.url) : '';
   return {
-    tabs: tabs.map(({ id, title, url, favicon, loading, pinned, error }) => ({ id, title, url, favicon, loading, pinned, error })),
-    media: tabs.filter(tab => tab.media).map(tab => ({ ...tab.media, id: tab.id, favicon: tab.favicon, url: tab.url, tabTitle: tab.title })),
+    spaces: spaces.map(({ id, name, emoji }) => ({ id, name, emoji: spaceEmoji(emoji), count: counts.get(id) ?? 0 })),
+    spaceId, split, tabs: spaceTabs().map(({ id, title, url, favicon, loading, pinned, error, sleeping }) => ({ id, title, url, favicon, loading, pinned, error, sleeping })),
+    media: spaceTabs().filter(tab => tab.media).map(tab => ({ ...tab.media, id: tab.id, favicon: tab.favicon, url: tab.url, tabTitle: tab.title })),
     tabPreviews: tabPreviews?.ready ? { images: tabPreviews.images, source: tabPreviews.source } : undefined,
     activeId, sidebar: sidebarVisible(), pageBlur, toolbarBlur, searchEngine, preferences, contentBlocking, history, bookmarks, favorites, favoriteLimit,
     extensions: [...extensions.values()],
@@ -363,6 +398,7 @@ function state() {
     update: updater?.state(),
     findResult,
     savedLogins: loginList,
+    tray: tray?.list() ?? [],
     site: origin ? {
       origin,
       connection: origin.startsWith('http:') ? 'http' : current.error || current.loading ? 'unverified' : 'https',
@@ -403,7 +439,7 @@ async function openTabOverview() {
   const view = showing;
   const overview = { images: {}, source: view?.getBounds(), ready: false };
   tabPreviews = overview;
-  for (const tab of tabs) {
+  for (const tab of spaceTabs()) {
     const cached = previewCache.get(tab);
     if (cached?.url === tab.url) overview.images[tab.id] = cached.src;
   }
@@ -425,7 +461,7 @@ async function openTabOverview() {
   layout();
   publish(false);
   void (async () => {
-    for (const tab of tabs) {
+    for (const tab of spaceTabs()) {
       if (tabPreviews !== overview) return;
       if (tab === current || overview.images[tab.id] || !tab.view) continue;
       const src = await capturePreview(tab, tab.view, 480);
@@ -448,7 +484,7 @@ function publish(persist = true) {
   }
   if (!persist || privateMode || !file) return;
   const data = JSON.stringify({
-    tabs: tabs.map(({ id, title, url, favicon, pinned }) => ({ id, title, url, favicon, pinned })),
+    configurableTools: true, spaces, spaceId, tabs: tabs.map(({ id, title, url, favicon, pinned, spaceId }) => ({ id, title, url, favicon, pinned, spaceId })),
     activeId, sidebar, pageBlur, toolbarBlur, searchEngine, preferences, history, bookmarks, favorites, tourCompleted,
     extensions: [...extensions.keys()], decisions, adExceptions: [...adExceptions],
     downloads: downloads.map(({ id, name, progress, status, path }) => ({ id, name, progress, status, path }))
@@ -503,6 +539,12 @@ function layout() {
   const view = showingTourDashboard() ? startPage
     : panel || tab?.error || !tab ? undefined
     : tab.url ? tab.view : preferences.newTabPage === 'dashboard' ? startPage : undefined;
+  const other = split && tabs.find(item => item.id === split.ids.find(id => id !== activeId));
+  const second = view && !panel && !tour && !fullscreenPage && other?.url && !other.error ? other.view : undefined;
+  if (secondaryView && secondaryView !== second) {
+    window.contentView.removeChildView(secondaryView);
+    secondaryView = undefined;
+  }
   if (showing !== view) {
     backdropRevision++;
     setPageBackdrop();
@@ -522,7 +564,18 @@ function layout() {
       return;
     }
     const x = sidebarVisible() ? sidebarWidth : pageGap;
-    view.setBounds({ x, y: topInset, width: Math.max(0, width - x - pageGap), height: Math.max(0, height - topInset - pageGap) });
+    const area = width - x - pageGap;
+    const bounds = { x, y: topInset, width: area, height: Math.max(0, height - topInset - pageGap) };
+    if (second) {
+      if (secondaryView !== second) window.contentView.addChildView(second, 0);
+      secondaryView = second;
+      const leftWidth = Math.round((area - 12) * split.ratio);
+      const left = { ...bounds, width: leftWidth };
+      const right = { ...bounds, x: x + leftWidth + 12, width: area - leftWidth - 12 };
+      const first = activeId === split.ids[0];
+      view.setBounds(first ? left : right);
+      second.setBounds(first ? right : left);
+    } else view.setBounds(bounds);
   }
 }
 
@@ -731,7 +784,7 @@ function closeTour(completed) {
 }
 
 async function updateTourStep(step, name) {
-  if (!Number.isInteger(step) || step < 0 || step > 4 || !tour) return;
+  if (!Number.isInteger(step) || step < 0 || step > 5 || !tour) return;
   const current = tour;
   current.step = step;
   layout();
@@ -923,6 +976,15 @@ function load(tab, url) {
       contents.setZoomFactor(tab.zoomFactor ?? preferences.defaultZoom / 100);
       void applyPageFont(contents);
     });
+    contents.on('focus', () => {
+      if (split?.ids.includes(tab.id) && activeId !== tab.id && !panel) {
+        clearFind();
+        activeId = tab.id;
+        if (secondaryView === view) [showing, secondaryView] = [secondaryView, showing];
+        layout();
+        publish();
+      }
+    });
     contents.on('before-input-event', shortCommand);
     contents.on('context-menu', (_event, params) => pageContextMenu(contents, params));
     contents.on('found-in-page', (_event, result) => {
@@ -988,6 +1050,7 @@ function load(tab, url) {
       loginPrompts?.cancel(contents);
       if (webUrl(url)) tab.url = url;
       tab.loading = false;
+      if (split?.ids.includes(tab.id)) split = undefined;
       tab.error = message;
       layout();
       publish(false);
@@ -998,13 +1061,21 @@ function load(tab, url) {
         fullscreenPage = undefined;
         view.setBorderRadius(9);
       }
+      if (split?.ids.includes(tab.id)) split = undefined;
       tab.error = 'The page stopped responding.';
       tab.loading = false;
       layout();
       publish(false);
     });
   }
-  tab.view.webContents.loadURL(url).catch(() => {});
+  const savedHistory = tab.sleepHistory;
+  tab.sleepHistory = undefined;
+  tab.sleeping = false;
+  const contents = tab.view.webContents;
+  if (savedHistory) contents.navigationHistory.restore(savedHistory).catch(() => {
+    if (!contents.isDestroyed()) void contents.loadURL(url).catch(() => {});
+  });
+  else contents.loadURL(url).catch(() => {});
   layout();
   publish();
 }
@@ -1051,6 +1122,7 @@ function updatePreference(key, value, persist = true) {
       if (!['dashboard', 'blank'].includes(value)) return;
       preferences.newTabPage = value;
       break;
+    case 'sleepTabs':
     case 'restoreTabs':
     case 'offerSaveLogins':
     case 'liveSuggestions':
@@ -1144,7 +1216,7 @@ async function clearSiteData(origin) {
 }
 
 function newTab(url = '', restored = {}) {
-  const tab = { id: randomUUID(), title: 'New tab', ...restored, url };
+  const tab = { id: randomUUID(), title: 'New tab', ...restored, spaceId, url };
   tabs.push(tab);
   select(tab.id);
 }
@@ -1156,6 +1228,12 @@ function select(id) {
   if (id !== activeId && showing && showing !== fullscreenPage) void capturePreview(active(), showing, 560);
   closeMediaPopup();
   clearFind();
+  if (active()) active().idleSince = Date.now();
+  if (tab.spaceId !== spaceId) switchSpace(tab.spaceId, false);
+  if (split && !split.ids.includes(id)) {
+    for (const item of tabs) if (split.ids.includes(item.id)) item.idleSince = Date.now();
+    split = undefined;
+  }
   activeId = id;
   panel = false;
   tabPreviews = undefined;
@@ -1164,7 +1242,53 @@ function select(id) {
   publish();
 }
 
+function switchSpace(id, activate = true) {
+  const next = spaces.find(item => item.id === id);
+  if (!next) return;
+  const previous = spaces.find(item => item.id === spaceId);
+  previous.favorites = favorites;
+  previous.activeId = activeId;
+  spaceId = id;
+  split = undefined;
+  favorites = next.favorites ?? [];
+  if (startPage) void startPage.webContents.loadURL(spaceHome()).catch(() => {});
+  if (activate) {
+    const target = spaceTabs().find(item => item.id === next.activeId) ?? spaceTabs()[0];
+    if (target) select(target.id);
+    else newTab();
+  }
+}
+
+function sleepEligible(tab) {
+  const contents = tab.view?.webContents;
+  return preferences.sleepTabs && tab.id !== activeId && !split?.ids.includes(tab.id) &&
+    tab.url && !tab.pinned && !tab.loading && !tab.media && !tab.error &&
+    contents && !contents.isDestroyed() && !contents.isCurrentlyAudible() &&
+    !deviceTabs.has(contents) && !contents.isBeingCaptured() && !contents.isDevToolsOpened() &&
+    Date.now() - (tab.idleSince ?? Date.now()) >= 15 * 60_000;
+}
+
+async function sleepIdleTabs() {
+  for (const tab of tabs.filter(sleepEligible)) {
+    const contents = tab.view.webContents;
+    try {
+      // Skip embedded frames, editors, and sites with device permissions.
+      if (contents.mainFrame.frames.length || Object.keys(decisions[siteOrigin(tab.url)] ?? {}).length) continue;
+      const busy = await contents.executeJavaScriptInIsolatedWorld(1001, [{ code:
+        "Boolean(document.pictureInPictureElement || document.querySelector('textarea,[contenteditable],input:not([type=hidden]):not([type=search])') || Array.from(document.querySelectorAll('video,audio')).some(m=>!m.paused || m.srcObject))"
+      }]);
+      if (busy || !sleepEligible(tab) || tab.view.webContents !== contents) continue;
+      tab.sleepHistory = { entries: contents.navigationHistory.getAllEntries(), index: contents.navigationHistory.getActiveIndex() };
+      tab.view = undefined;
+      tab.sleeping = true;
+      contents.close();
+      publish(false);
+    } catch { /* The tab may have navigated or closed during the check. */ }
+  }
+}
+
 function goHome(tab) {
+  split = undefined;
   loginPrompts?.cancelAll();
   if (!tab.url) return;
   clearFind();
@@ -1187,16 +1311,77 @@ function clearFind() {
   findText = '';
 }
 
+function spaceEmoji(value) {
+  return typeof value === 'string' && value.length <= 24 && /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(value) &&
+    /^[\p{Extended_Pictographic}\p{Regional_Indicator}\p{Emoji_Modifier}️‍]+$/u.test(value) ? value : '🏠';
+}
+
 function act(action, value) {
   const tab = active();
   const contents = tab?.view?.webContents;
   switch (action) {
+    case 'space-new': {
+      const rawName = typeof value === 'string' ? value : value?.name;
+      const name = typeof rawName === 'string' && rawName.trim().slice(0, 40);
+      if (!name) return;
+      const entry = { id: randomUUID(), name, emoji: spaceEmoji(value?.emoji) };
+      spaces.push(entry);
+      return switchSpace(entry.id);
+    }
+    case 'space-emoji': {
+      const space = spaces.find(item => item.id === value?.id);
+      if (!space) return;
+      space.emoji = spaceEmoji(value.emoji);
+      return publish();
+    }
+    case 'space-select': return switchSpace(value);
+    case 'split': {
+      const pair = Array.isArray(value) && value.map(id => spaceTabs().find(item => item.id === id));
+      if (!pair || pair.length !== 2 || pair[0] === pair[1] || pair.some(item => !item?.url || item.error)) return;
+      split = { ids: pair.map(item => item.id), ratio: .5 };
+      if (!pair[1].view) load(pair[1], pair[1].url);
+      return select(pair[0].id);
+    }
+    case 'split-size':
+      if (!split || !Number.isFinite(value)) return;
+      split.ratio = Math.min(.75, Math.max(.25, value));
+      layout();
+      return publish(false);
+    case 'split-swap': if (split) split.ids.reverse(); break;
+    case 'split-end':
+      for (const item of tabs) if (split?.ids.includes(item.id)) item.idleSince = Date.now();
+      split = undefined;
+      break;
     case 'new': return newTab();
+    case 'tray-drop': return tray?.add(value).then(result => {
+      publish(false);
+      return result;
+    });
+    case 'tray-copy': {
+      const item = tray?.get(value);
+      if (item?.kind === 'text') clipboard.writeText(item.text);
+      if (item?.kind === 'link') clipboard.writeText(item.url);
+      return;
+    }
+    case 'tray-open': {
+      const item = tray?.get(value);
+      if (item?.kind === 'link') {
+        const url = webUrl(item.url);
+        if (url) newTab(url);
+      }
+      if (item?.kind === 'file') return tray.revealPath(item).then(path => {
+        if (!path) throw new Error('Saved file is unavailable');
+        shell.showItemInFolder(path);
+      });
+      return;
+    }
+    case 'tray-remove': return tray?.remove(value).then(() => publish(false));
     case 'make-default-browser': return makeDefaultBrowser();
     case 'browser-update': return updater?.install();
     case 'select': return select(value);
     case 'reopen': {
-      const item = closed.pop();
+      const index = closed.findLastIndex(item => item.spaceId === spaceId);
+      const item = index >= 0 ? closed.splice(index, 1)[0] : undefined;
       return item && newTab(item.url, item);
     }
     case 'close': {
@@ -1204,10 +1389,12 @@ function act(action, value) {
       if (index < 0) return;
       const [removed] = tabs.splice(index, 1);
       const { id, title, url, favicon, pinned } = removed;
-      closed.push({ id, title, url, favicon, pinned });
+      closed.push({ id, title, url, favicon, pinned, spaceId: removed.spaceId });
       if (closed.length > 40) closed.shift();
-      if (!tabs.length) newTab();
-      else if (id === activeId) select(tabs[Math.min(index, tabs.length - 1)].id);
+      if (split?.ids.includes(id)) split = undefined;
+      const remaining = spaceTabs();
+      if (!remaining.length) newTab();
+      else if (id === activeId) select(remaining[Math.min(index, remaining.length - 1)].id);
       removed.view?.webContents.close();
       break;
     }
@@ -1247,6 +1434,11 @@ function act(action, value) {
       if (value === true) openMediaPopup();
       else scheduleMediaPopupClose();
       return;
+    case 'media-pip': {
+      const mediaTab = tabs.find(item => item.id === value && item.media?.video);
+      if (mediaTab?.view) return togglePictureInPicture(mediaTab.view.webContents.mainFrame);
+      return;
+    }
     case 'media-toggle': {
       const mediaTab = tabs.find(item => item.id === value && item.media);
       if (mediaTab?.view && !mediaTab.view.webContents.isDestroyed()) mediaTab.view.webContents.send('nova:media-control', 'toggle');
@@ -1335,7 +1527,7 @@ function act(action, value) {
     case 'open-favorite': {
       const favorite = favorites.find(item => item.url === value);
       if (!favorite) return;
-      const open = tabs.find(item => item.url === favorite.url);
+      const open = spaceTabs().find(item => item.url === favorite.url);
       return open ? select(open.id) : newTab(favorite.url, favorite);
     }
     case 'panel':
@@ -1391,6 +1583,9 @@ async function launch() {
   tourCompleted = privateMode || (typeof saved.tourCompleted === 'boolean' ? saved.tourCompleted : Boolean(saved.tabs));
   preferences = defaultPreferences();
   if (!privateMode) {
+    tray = await openTrayStore(join(app.getPath('userData'), 'tray')).catch(error => {
+      console.error('Could not open the Tray:', error);
+    });
     decisions = saved.decisions && typeof saved.decisions === 'object' ? saved.decisions : {};
     adExceptions = new Set(Array.isArray(saved.adExceptions) ? saved.adExceptions : []);
     downloads = (Array.isArray(saved.downloads) ? saved.downloads : []).slice(0, 80)
@@ -1398,8 +1593,11 @@ async function launch() {
     vault = passwordVault(join(app.getPath('userData'), 'saved-logins.bin'));
   }
   const stored = saved.preferences ?? {};
-  for (const key of ['sidebar', 'toolbar', 'fontSize', 'defaultZoom', 'newTabPage', 'restoreTabs', 'rememberHistory', 'liveSuggestions', 'offerSaveLogins', 'blockAds', 'swipeHistory', 'pinchOverview', 'pinchOpenTab']) {
-    if (Object.hasOwn(stored, key)) updatePreference(key, stored[key], false);
+  for (const key of ['sidebar', 'toolbar', 'fontSize', 'defaultZoom', 'newTabPage', 'sleepTabs', 'restoreTabs', 'rememberHistory', 'liveSuggestions', 'offerSaveLogins', 'blockAds', 'swipeHistory', 'pinchOverview', 'pinchOpenTab']) {
+    if (!Object.hasOwn(stored, key)) continue;
+    const value = key === 'sidebar' && !saved.configurableTools && Array.isArray(stored[key])
+      ? [...stored[key], 'tray', 'spaces'] : stored[key];
+    updatePreference(key, value, false);
   }
   if (typeof stored.downloadFolder === 'string' && isAbsolute(stored.downloadFolder)) preferences.downloadFolder = stored.downloadFolder;
   ({ history = [], bookmarks = [], sidebar = true } = saved);
@@ -1407,8 +1605,12 @@ async function launch() {
   toolbarBlur = typeof saved.toolbarBlur === 'boolean' ? saved.toolbarBlur : pageBlur;
   if (typeof saved.searchEngine === 'string' && Object.hasOwn(searchEngines, saved.searchEngine)) searchEngine = saved.searchEngine;
   favorites = (saved.favorites ?? []).filter(item => webUrl(item?.url)).slice(0, favoriteLimit);
+  if (Array.isArray(saved.spaces) && saved.spaces.some(item => item?.id === 'personal')) {
+    spaces = saved.spaces.filter(item => typeof item?.id === 'string' && typeof item.name === 'string');
+    spaceId = spaces.find(item => item.id === saved.spaceId)?.id ?? 'personal';
+  }
   tabs = (preferences.restoreTabs ? saved.tabs ?? [] : []).slice(0, 100).map(item => ({
-    id: item.id, title: item.title, pinned: item.pinned, url: webUrl(item.url), favicon: webUrl(item.favicon)
+    spaceId: spaces.find(space => space.id === item.spaceId)?.id ?? 'personal', id: item.id, title: item.title, pinned: item.pinned, url: webUrl(item.url), favicon: webUrl(item.favicon)
   }));
 
   webSession = session.fromPartition(privateMode ? 'nova-private-web' : 'persist:nova-web', { cache: !privateMode });
@@ -1482,7 +1684,7 @@ async function launch() {
     if (mediaPopup && event.sender === mediaPopup.webContents) scheduleMediaPopupClose();
   });
   ipcMain.on('media-popup:action', (event, action, value) => {
-    if (!mediaPopup || event.sender !== mediaPopup.webContents || !['media-toggle', 'media-seek', 'select'].includes(action)) return;
+    if (!mediaPopup || event.sender !== mediaPopup.webContents || !['media-toggle', 'media-seek', 'media-pip', 'select'].includes(action)) return;
     act(action, value);
     if (action === 'select') closeMediaPopup();
   });
@@ -1494,7 +1696,7 @@ async function launch() {
       title: typeof media.title === 'string' ? media.title.slice(0, 300) : '',
       artist: typeof media.artist === 'string' ? media.artist.slice(0, 200) : '',
       artwork: typeof media.artwork === 'string' ? webUrl(media.artwork) : '',
-      playing: media.playing === true,
+      video: media.video === true, playing: media.playing === true,
       currentTime: Number.isFinite(media.currentTime) ? Math.max(0, media.currentTime) : 0,
       duration: Number.isFinite(media.duration) ? Math.max(0, media.duration) : 0
     } : undefined;
@@ -1510,6 +1712,7 @@ async function launch() {
   contentBlocker.setEnabled(preferences.blockAds);
   webSession.setDownloadPath(preferences.downloadFolder);
   installPermissions(webSession, {
+    onDeviceAccess: contents => deviceTabs.add(contents),
     getWindow: () => window,
     isActive: contents => showing?.webContents === contents,
     readDecision: (origin, key) => decisions[origin]?.[key],
@@ -1595,6 +1798,7 @@ async function launch() {
   }
   window.on('enter-full-screen', updateFullscreenLayout);
   window.on('leave-full-screen', updateFullscreenLayout);
+  const sleepTimer = setInterval(sleepIdleTabs, 60_000);
   const backdropTimer = setInterval(refreshPageBackdrop, 650);
   const filterTimer = setInterval(() => {
     if (preferences.blockAds) contentBlocker.setEnabled(true);
@@ -1603,6 +1807,7 @@ async function launch() {
     closeTour(false);
     closeSpotlight(false);
     addressPopup?.webContents.close();
+    clearInterval(sleepTimer);
     clearInterval(backdropTimer);
     clearInterval(filterTimer);
     for (const tab of tabs) tab.view?.webContents.close();
@@ -1636,9 +1841,10 @@ async function launch() {
     if (event.sender === spotlight?.webContents && event.senderFrame?.url === spotlightUrl) closeSpotlight();
   });
   startPage = createStartPage();
-  void startPage.webContents.loadURL(startUrl).catch(error => console.error('Could not load the NOVA dashboard:', error));
+  void startPage.webContents.loadURL(spaceHome()).catch(error => console.error('Could not load the NOVA dashboard:', error));
   if (!pendingExternalLinks.length) {
-    if (tabs.length) select(tabs.find(tab => tab.id === saved.activeId)?.id ?? tabs[0].id);
+    const restored = spaceTabs();
+    if (restored.length) select(restored.find(tab => tab.id === saved.activeId)?.id ?? restored[0].id);
     else newTab(privateAddress);
   }
   await window.loadFile(chromePath);

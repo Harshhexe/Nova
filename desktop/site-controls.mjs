@@ -23,7 +23,7 @@ function permissionKeys(permission, details) {
   return permission === 'geolocation' || permission === 'notifications' ? [permission] : [];
 }
 
-export function installPermissions(session, { getWindow, isActive, readDecision, writeDecision }) {
+export function installPermissions(session, { getWindow, isActive, readDecision, writeDecision, onDeviceAccess }) {
   let promptOpen = false;
   function site(contents, url, details = {}) {
     if (!contents || contents.isDestroyed() || !details.isMainFrame) return '';
@@ -43,7 +43,11 @@ export function installPermissions(session, { getWindow, isActive, readDecision,
     if (!origin || !keys.length || !isActive(contents)) return respond(false);
     if (keys.some(key => readDecision(origin, key) === 'block')) return respond(false);
     const undecided = keys.filter(key => readDecision(origin, key) !== 'allow');
-    if (!undecided.length) return respond(true);
+    const allow = () => {
+      if (keys.includes('camera') || keys.includes('microphone')) onDeviceAccess?.(contents);
+      respond(true);
+    };
+    if (!undecided.length) return allow();
     if (promptOpen) return respond(false);
     promptOpen = true;
     const frame = contents.mainFrame;
@@ -57,7 +61,8 @@ export function installPermissions(session, { getWindow, isActive, readDecision,
       if (contents.isDestroyed() || !isActive(contents) || contents.mainFrame !== frame || secureOrigin(contents.getURL()) !== origin) return respond(false);
       if (response === 1) writeDecision(origin, undecided, 'allow');
       if (response === 2) writeDecision(origin, undecided, 'block');
-      respond(response === 0 || response === 1);
+      if (response === 0 || response === 1) allow();
+      else respond(false);
     }, () => respond(false)).finally(() => { promptOpen = false; });
   });
 }
