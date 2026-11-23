@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Command } from 'cmdk';
-import { ArrowDownToLine, ArrowLeftRight, Check, ArrowLeft, ArrowRight, ArrowUpRight, Bookmark, CircleAlert, Clock3, Compass, Globe2, GripVertical, House, Inbox, KeyRound, Layers2, Link2, Minus, PanelLeft, PanelTop, Pause, Pin, Play, Plus, Puzzle, RotateCw, Search, Settings, ShieldCheck, ShieldAlert, StarOff, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowLeftRight, Check, ArrowLeft, ArrowRight, ArrowUpRight, Bookmark, BookOpen, Briefcase, Camera, ChevronDown, CircleAlert, Clock3, Code, Coffee, Columns2, Compass, Cpu, FlaskConical, Folder, Gamepad2, Globe2, GripVertical, Heart, House, Inbox, KeyRound, Layers2, Leaf, Link2, Minus, Moon, Music, Palette, PanelLeft, PanelTop, Pause, Pin, Play, Plus, Puzzle, Rocket, RotateCw, Search, Settings, ShieldCheck, ShieldAlert, Sparkles, Star, StarOff, Terminal, Waves, Wrench, X } from 'lucide-react';
 import BlurText from './BlurText';
 import { TrayPanel, useTrayDrop, type TrayItem } from './TrayPanel';
 import './shell.css';
@@ -120,12 +120,128 @@ function previewTransform(preview: HTMLElement, bounds: PageBounds) {
   return `translate(${bounds.x - rect.left}px, ${bounds.y - rect.top}px) scale(${bounds.width / rect.width}, ${bounds.height / rect.height})`;
 }
 
-const spaceEmojis = ['🏠', '✨', '💼', '🎨', '📚', '🧪', '🎮', '🎵', '🛠️', '🚀', '🌿', '☕', '📷', '🌙', '🌊', '🧭'];
+const spaceIconOptions = [
+  { id: 'house', label: 'Home', icon: House },
+  { id: 'sparkles', label: 'Sparkles', icon: Sparkles },
+  { id: 'briefcase', label: 'Work', icon: Briefcase },
+  { id: 'palette', label: 'Creative', icon: Palette },
+  { id: 'book-open', label: 'Reading', icon: BookOpen },
+  { id: 'flask', label: 'Research', icon: FlaskConical },
+  { id: 'gamepad', label: 'Play', icon: Gamepad2 },
+  { id: 'music', label: 'Audio', icon: Music },
+  { id: 'wrench', label: 'Tools', icon: Wrench },
+  { id: 'rocket', label: 'Launch', icon: Rocket },
+  { id: 'leaf', label: 'Nature', icon: Leaf },
+  { id: 'coffee', label: 'Daily', icon: Coffee },
+  { id: 'camera', label: 'Photos', icon: Camera },
+  { id: 'moon', label: 'Focus', icon: Moon },
+  { id: 'waves', label: 'Flow', icon: Waves },
+  { id: 'compass', label: 'Explore', icon: Compass },
+  { id: 'code', label: 'Code', icon: Code },
+  { id: 'terminal', label: 'Terminal', icon: Terminal },
+  { id: 'globe', label: 'Web', icon: Globe2 },
+  { id: 'heart', label: 'Personal', icon: Heart },
+  { id: 'star', label: 'Favorites', icon: Star },
+  { id: 'folder', label: 'Folder', icon: Folder },
+  { id: 'layers', label: 'Spaces', icon: Layers2 },
+  { id: 'cpu', label: 'Tech', icon: Cpu },
+] as const;
 
-function EmojiPicker({ value, onChange, label }: { value: string; onChange: (value: string) => void; label: string }) {
-  return <select className="space-emoji-picker" aria-label={label} value={value} onChange={event => onChange(event.target.value)}>
-    {[...new Set([value, ...spaceEmojis])].map(icon => <option key={icon}>{icon}</option>)}
-  </select>;
+const legacyEmojiToIconKey: Record<string, string> = {
+  '🏠': 'house', '✨': 'sparkles', '💼': 'briefcase', '🎨': 'palette',
+  '📚': 'book-open', '🧪': 'flask', '🎮': 'gamepad', '🎵': 'music',
+  '🛠️': 'wrench', '🛠': 'wrench', '🚀': 'rocket', '🌿': 'leaf',
+  '☕': 'coffee', '📷': 'camera', '🌙': 'moon', '🌊': 'waves', '🧭': 'compass'
+};
+
+const iconLookup: Record<string, typeof House> = {};
+for (const item of spaceIconOptions) {
+  iconLookup[item.id] = item.icon;
+}
+
+function resolveSpaceIcon(value?: string) {
+  if (!value) return House;
+  const key = legacyEmojiToIconKey[value] || value.toLowerCase();
+  return iconLookup[key] || House;
+}
+
+function SpaceIcon({ name, size = 18, className = '' }: { name?: string; size?: number; className?: string }) {
+  const IconComponent = resolveSpaceIcon(name);
+  return <IconComponent size={size} strokeWidth={1.8} className={`space-outline-icon ${className}`} />;
+}
+
+function SpaceIconPicker({ value, onChange, label }: { value: string; onChange: (value: string) => void; label: string }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const currentKey = legacyEmojiToIconKey[value] || value.toLowerCase();
+  const currentOption = spaceIconOptions.find(opt => opt.id === currentKey) || spaceIconOptions[0];
+
+  useEffect(() => {
+    if (!open) return;
+    function handlePointerDown(e: PointerEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div className="space-icon-picker-box" ref={containerRef}>
+      <button
+        type="button"
+        className={`space-icon-box-trigger ${open ? 'active' : ''}`}
+        aria-label={label}
+        title={label}
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+      >
+        <span className="space-icon-box-preview">
+          <SpaceIcon name={value} size={18} />
+        </span>
+        <ChevronDown size={13} className={`space-icon-chevron ${open ? 'rotated' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="space-icon-dropdown-box" role="dialog" aria-label={label}>
+          <div className="space-icon-dropdown-header">
+            <span>CHOOSE ICON</span>
+            <small>{currentOption.label}</small>
+          </div>
+          <div className="space-icon-grid-box">
+            {spaceIconOptions.map(option => {
+              const isSelected = currentKey === option.id;
+              const OptionIcon = option.icon;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={`space-icon-tile-btn ${isSelected ? 'selected' : ''}`}
+                  title={option.label}
+                  aria-label={option.label}
+                  aria-pressed={isSelected}
+                  onClick={() => {
+                    onChange(option.id);
+                    setOpen(false);
+                  }}
+                >
+                  <OptionIcon size={18} strokeWidth={1.8} />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function SplitDivider({ split, sidebar }: { split: NonNullable<BrowserState['split']>; sidebar: boolean }) {
@@ -195,7 +311,7 @@ function TabOverview({ tabs, activeId, previews, onSelect, onSplit, onDismiss, s
   return <dialog ref={dialog} className="spatial-overview" aria-label="Open tabs"
     style={{ '--preview-ratio': source?.width && source.height ? source.width / source.height : 1.6 } as CSSProperties}
     onCancel={event => { event.preventDefault(); void finish(activePreview.current ?? undefined); }}>
-    {tabs.filter(tab => tab.url && !tab.error).length >= 2 && <span className="split-hint"><PanelLeft size={14}/> {splitFrom ? 'Choose a second page for Split View' : 'Drag a page onto another to split'}</span>}
+    {tabs.filter(tab => tab.url && !tab.error).length >= 2 && <span className="split-hint"><Columns2 size={14}/> {splitFrom ? 'Choose a second page for Split View' : 'Drag a page onto another to split'}</span>}
     <button className="spatial-dismiss" type="button" aria-label="Close tab overview" autoFocus
       onClick={() => void finish(activePreview.current ?? undefined)}><X size={18} /></button>
     <div className="spatial-scroll" onClick={event => {
@@ -257,7 +373,7 @@ const navigation = [
   { id: 'passwords', label: 'Passwords', icon: KeyRound },
   { id: 'tray', label: 'Tray', icon: Inbox },
   { id: 'spaces', label: 'Spaces', icon: Layers2 },
-  { id: 'split', label: 'Split View', icon: PanelLeft }
+  { id: 'split', label: 'Split View', icon: Columns2 }
 ] as const;
 
 const toolbarOptions = [
@@ -420,7 +536,7 @@ function Browser() {
   const [mediaOpen, setMediaOpen] = useState(false);
   const [pageBackdrop, setPageBackdrop] = useState({ top: '', side: '' });
   const [spaceName, setSpaceName] = useState('');
-  const [emoji, setEmoji] = useState('✨');
+  const [emoji, setEmoji] = useState('sparkles');
   const [chooseSplit, setChooseSplit] = useState(false);
   const currentSpace = state.spaces.find(item => item.id === state.spaceId);
   const [panel, setPanel] = useState<Panel>();
@@ -530,13 +646,13 @@ function Browser() {
     if (!control || (id === 'tray' && state.privateMode)) return null;
     if (control.id === 'split') return <IconButton key={id} label={state.split ? 'Exit Split View' : 'Split View'}
       pressed={Boolean(state.split)} disabled={!state.split && (!tab?.url || Boolean(tab.error) || !state.tabs.some(item => item.id !== state.activeId && item.url && !item.error))}
-      onClick={() => state.split ? run('split-end') : show('tabs', true)}><PanelLeft size={size}/></IconButton>;
+      onClick={() => state.split ? run('split-end') : show('tabs', true)}><Columns2 size={size}/></IconButton>;
     const label = control.id === 'spaces' ? 'Spaces · ' + (currentSpace?.name ?? 'Personal') : control.label;
     if (control.id === 'tray') return <button key={id} type="button" aria-label={label} title={label} aria-pressed={panel === 'tray'}
       className={'icon-button tray-sidebar' + (trayDrop.dragging ? ' drop-ready' : '')}
       {...trayDrop.dropProps} onClick={() => show(panel === 'tray' ? undefined : 'tray')}><Inbox size={size}/></button>;
     return <IconButton key={id} label={label} pressed={panel === control.id} onClick={() => show(panel === control.id ? undefined : control.id)}>
-      {control.id === 'spaces' ? <span className="space-emoji" aria-hidden="true">{currentSpace?.emoji ?? '🏠'}</span> : <control.icon size={size}/>}
+      {control.id === 'spaces' ? <SpaceIcon name={currentSpace?.emoji} size={size}/> : <control.icon size={size}/>}
     </IconButton>;
   }
 
@@ -609,6 +725,7 @@ function Browser() {
 
   return <div className={'browser ' + (state.sidebar ? 'with-sidebar ' : '') + (state.platform === 'darwin' && !state.fullscreen ? 'mac' : '')} style={backdropStyle}>
     <header className="chrome">
+      <div className="toolbar-glass" aria-hidden="true" />
       {swipe && (swipe.direction === 'back' ? state.canBack : state.canForward) && <div className={`swipe-indicator ${swipe.direction}`} role="status">
         {swipe.direction === 'back' ? <><ArrowLeft size={22} /> Back</> : <>Forward <ArrowRight size={22} /></>}
       </div>}
@@ -799,15 +916,17 @@ function Browser() {
         <div className="space-grid">{state.spaces.map((space, index) => <button key={space.id} className="space-tile" aria-pressed={state.spaceId === space.id}
           style={{'--space-hue': (index * 73 + 168) % 360} as CSSProperties}
           onClick={() => { setPanel(undefined); run('space-select', space.id); }}>
-          <span className="space-emoji" aria-hidden="true">{space.emoji}</span><span className="space-info"><strong>{space.name}</strong><small>{space.count} {space.count === 1 ? 'tab' : 'tabs'}</small></span>{state.spaceId === space.id && <Check size={16}/>}
+          <div className="space-tile-icon-surface"><SpaceIcon name={space.emoji} size={22} /></div>
+          <span className="space-info"><strong>{space.name}</strong><small>{space.count} {space.count === 1 ? 'tab' : 'tabs'}</small></span>{state.spaceId === space.id && <Check size={16}/>}
         </button>)}</div>
-        {currentSpace && <label className="space-emoji-setting">Icon for {currentSpace.name}
-          <EmojiPicker value={currentSpace.emoji} onChange={value => run('space-emoji', { id: currentSpace.id, emoji: value })} label="Current Space emoji"/>
-        </label>}
+        {currentSpace && <div className="space-emoji-setting">
+          <span>Icon for <strong>{currentSpace.name}</strong></span>
+          <SpaceIconPicker value={currentSpace.emoji} onChange={value => run('space-emoji', { id: currentSpace.id, emoji: value })} label={`Icon for ${currentSpace.name}`}/>
+        </div>}
         <form className="space-create" onSubmit={event => {
           event.preventDefault(); if (!spaceName.trim()) return;
           setPanel(undefined); run('space-new', { name: spaceName, emoji }); setSpaceName('');
-        }}><EmojiPicker value={emoji} onChange={setEmoji} label="New Space emoji"/><input aria-label="Space name" placeholder="Name a new space" maxLength={40} value={spaceName} onChange={event => setSpaceName(event.target.value)}/>
+        }}><SpaceIconPicker value={emoji} onChange={setEmoji} label="New Space icon"/><input aria-label="Space name" placeholder="Name a new space" maxLength={40} value={spaceName} onChange={event => setSpaceName(event.target.value)}/>
         <button disabled={!spaceName.trim()}><Plus size={16}/> Create space</button></form>
       </section>}
       {panel === 'tray' && <TrayPanel items={state.tray} drop={trayDrop} onClose={() => show()} />}

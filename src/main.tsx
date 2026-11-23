@@ -90,7 +90,30 @@ const s = currentSpace ? {
 } : preferences;
 const ratesRequested=useRef(false);const pointerInShelf=useRef(false);const[exchangeRates,setExchangeRates]=useState<Record<string,number>>({});const[folderId,setFolderId]=useState<string|undefined>();const wallpaperAsset=useWallpaperAsset();const[shelfPinned,setShelfPinned]=useState(false);const shelfCloseTimer=useRef<ReturnType<typeof setTimeout>|null>(null);const shelfInteractiveAt=useRef(0);const shelfRef=useRef<HTMLElement>(null);const[panel,setPanel]=useState<string|null>(spotlight?'search':null);const[edit,setEdit]=useState(false);const[favoritesOpen,setFavoritesOpen]=useState(false);const[shortcut,setShortcut]=useState<Shortcut|null>(null);const[query,setQuery]=useState('');const[selected,setSelected]=useState(0);const[suggestions,setSuggestions]=useState<string[]>([]);const[suggestionState,setSuggestionState]=useState<'idle'|'loading'|'ready'|'offline'>('idle');const[task,setTask]=useState('');const[launchingId,setLaunchingId]=useState<string|null>(null);const launchTimer=useRef<ReturnType<typeof setTimeout>|null>(null);const[error,setError]=useState('');const[notice,setNotice]=useState('');const[undoFavorite,setUndoFavorite]=useState<{item:Shortcut;index:number}|null>(null);const dialogRef=useRef<HTMLDivElement>(null);const heroInputRef=useRef<HTMLInputElement>(null);const commandInputRef=useRef<HTMLInputElement>(null);const previousFocus=useRef<HTMLElement|null>(null);const sensors=useSensors(useSensor(PointerSensor,{activationConstraint:{distance:8}}),useSensor(KeyboardSensor,{coordinateGetter:sortableKeyboardCoordinates}));
 useEffect(()=>{if(!ratesRequested.current&&convertUnits(query)?.type==='currency'){ratesRequested.current=true;fetchCurrencyRates().then(r=>{if(r)setExchangeRates(r)})}},[query]);
-useEffect(()=>{const update=()=>document.documentElement.classList.toggle('background-paused',document.hidden);update();document.addEventListener('visibilitychange',update);return()=>{document.removeEventListener('visibilitychange',update);document.documentElement.classList.remove('background-paused')}},[]);
+useEffect(() => {
+  const root = document.documentElement;
+  let timer: number | undefined;
+  function pause() { root.classList.add('background-paused'); }
+  function interact() {
+    if (document.hidden) return;
+    root.classList.remove('background-paused');
+    window.clearTimeout(timer);
+    timer = window.setTimeout(pause, 1600);
+  }
+  pause();
+  window.addEventListener('pointermove', interact, { passive: true });
+  window.addEventListener('pointerdown', interact, { passive: true });
+  window.addEventListener('blur', pause);
+  document.addEventListener('visibilitychange', pause);
+  return () => {
+    window.clearTimeout(timer);
+    window.removeEventListener('pointermove', interact);
+    window.removeEventListener('pointerdown', interact);
+    window.removeEventListener('blur', pause);
+    document.removeEventListener('visibilitychange', pause);
+    root.classList.remove('background-paused');
+  };
+}, []);
 useEffect(()=>{if(!panel&&!shortcut&&!edit){const timer=setTimeout(()=>heroInputRef.current?.focus(),60);return()=>clearTimeout(timer)}},[panel,shortcut,edit]);
 useEffect(()=>{if(panel==='search'){const timer=setTimeout(()=>{const el=commandInputRef.current;if(el){el.focus();const len=el.value.length;el.setSelectionRange(len,len);}},20);return()=>clearTimeout(timer)}},[panel]);
 useEffect(()=>{const key=(e:KeyboardEvent)=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();setPanel(p=>p==='search'?null:'search');return;}if(e.key==='Escape'){setPanel(null);setShortcut(null);setEdit(false);setFavoritesOpen(false);setShelfPinned(false);setQuery('');setTimeout(()=>heroInputRef.current?.focus(),50);return;}if(panel||shortcut||edit)return;const activeEl=document.activeElement as HTMLElement|null;if(activeEl&&(activeEl.tagName==='TEXTAREA'||(activeEl.tagName==='INPUT'&&activeEl!==heroInputRef.current)||activeEl.isContentEditable))return;if(e.metaKey||e.ctrlKey||e.altKey||e.key.length!==1)return;if(document.activeElement!==heroInputRef.current){e.preventDefault();setQuery(e.key);setSelected(0);setPanel('search');}};document.addEventListener('keydown',key);return()=>document.removeEventListener('keydown',key)},[panel,shortcut,edit]);

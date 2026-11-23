@@ -24,8 +24,8 @@ const startUrl = 'nova://home/';
 const spotlightUrl = 'nova://home/?spotlight';
 const startFiles = join(root, 'dist');
 const sidebarWidth = 60;
-const topInset = 49;
 const pageGap = 5;
+const topInset = 49 + pageGap;
 const favoriteLimit = 3;
 const searchEngines = {
   google: 'https://www.google.com/search?q=',
@@ -63,7 +63,7 @@ let tour;
 let tourCompleted = true;
 let webSession;
 let activeId;
-let spaces = [{ id: 'personal', name: 'Personal', emoji: '🏠' }];
+let spaces = [{ id: 'personal', name: 'Personal', emoji: 'house' }];
 let spaceId = 'personal';
 let split;
 let secondaryView;
@@ -77,6 +77,7 @@ let mediaCloseTimer;
 let fullscreenPage;
 let pageBackdrop = { top: '', side: '' };
 let backdropRevision = 0;
+let backdropDirty = true;
 let capturingBackdrop = false;
 let panel = false;
 let tabPreviews;
@@ -507,6 +508,7 @@ function setPageBackdrop(top = '', side = '') {
 }
 
 async function refreshPageBackdrop() {
+  if (!backdropDirty || !window || window.isDestroyed()) return;
   const captureSide = sidebar && pageBlur;
   if ((!toolbarBlur && !captureSide) || capturingBackdrop || !showing || fullscreenPage === showing ||
       spotlightVisible || tour?.visible || !window.isFocused() || window.isMinimized()) return;
@@ -515,6 +517,7 @@ async function refreshPageBackdrop() {
   if (!width || !height) return;
 
   const revision = backdropRevision;
+  backdropDirty = false;
   capturingBackdrop = true;
   try {
     const contents = view.webContents;
@@ -547,6 +550,7 @@ function layout() {
   }
   if (showing !== view) {
     backdropRevision++;
+    backdropDirty = true;
     setPageBackdrop();
     if (showing) window.contentView.removeChildView(showing);
     if (view) window.contentView.addChildView(view);
@@ -945,6 +949,7 @@ function createStartPage() {
   const contents = view.webContents;
   contents.on('before-input-event', shortCommand);
   installEditMenu(contents);
+  contents.on('did-finish-load', () => { if (view === showing) backdropDirty = true; });
   contents.on('will-navigate', (event, details) => {
     const url = typeof details === 'string' ? details : details?.url ?? event.url;
     if (url === startUrl) return;
@@ -1044,7 +1049,11 @@ function load(tab, url) {
       publish();
     });
     contents.on('did-start-loading', () => { tab.loading = true; publish(false); });
-    contents.on('did-stop-loading', () => { tab.loading = false; publish(false); });
+    contents.on('did-stop-loading', () => {
+      tab.loading = false;
+      if (view === showing) backdropDirty = true;
+      publish(false);
+    });
     contents.on('did-fail-load', (_event, code, message, url, main) => {
       if (tab.homeForward || !main || code === -3) return;
       loginPrompts?.cancel(contents);
@@ -1311,9 +1320,32 @@ function clearFind() {
   findText = '';
 }
 
+const emojiToIcon = {
+  '🏠': 'house',
+  '✨': 'sparkles',
+  '💼': 'briefcase',
+  '🎨': 'palette',
+  '📚': 'book-open',
+  '🧪': 'flask',
+  '🎮': 'gamepad',
+  '🎵': 'music',
+  '🛠️': 'wrench',
+  '🛠': 'wrench',
+  '🚀': 'rocket',
+  '🌿': 'leaf',
+  '☕': 'coffee',
+  '📷': 'camera',
+  '🌙': 'moon',
+  '🌊': 'waves',
+  '🧭': 'compass',
+};
+
 function spaceEmoji(value) {
-  return typeof value === 'string' && value.length <= 24 && /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(value) &&
-    /^[\p{Extended_Pictographic}\p{Regional_Indicator}\p{Emoji_Modifier}️‍]+$/u.test(value) ? value : '🏠';
+  if (typeof value !== 'string') return 'house';
+  if (emojiToIcon[value]) return emojiToIcon[value];
+  const cleaned = value.trim().toLowerCase();
+  if (/^[a-z0-9-]+$/i.test(cleaned) && cleaned.length <= 40) return cleaned;
+  return 'house';
 }
 
 function act(action, value) {
@@ -1429,7 +1461,7 @@ function act(action, value) {
       if (tab?.loading) contents?.stop();
       else contents?.reload();
       break;
-    case 'sidebar': sidebar = typeof value === 'boolean' ? value : !sidebar; if (!sidebar) closeMediaPopup(); break;
+    case 'sidebar': sidebar = typeof value === 'boolean' ? value : !sidebar; backdropDirty = true; if (!sidebar) closeMediaPopup(); break;
     case 'media-expand':
       if (value === true) openMediaPopup();
       else scheduleMediaPopupClose();
@@ -1496,12 +1528,14 @@ function act(action, value) {
       if (typeof value !== 'boolean') return;
       pageBlur = value;
       backdropRevision++;
+      backdropDirty = true;
       if (!pageBlur) setPageBackdrop(pageBackdrop.top);
       break;
     case 'toolbar-blur':
       if (typeof value !== 'boolean') return;
       toolbarBlur = value;
       backdropRevision++;
+      backdropDirty = true;
       if (!toolbarBlur) setPageBackdrop('', pageBackdrop.side);
       break;
     case 'search-engine':
@@ -1688,6 +1722,9 @@ async function launch() {
     act(action, value);
     if (action === 'select') closeMediaPopup();
   });
+  ipcMain.on('nova:page-scrolled', event => {
+    if (event.sender === showing?.webContents && event.senderFrame === event.sender.mainFrame) backdropDirty = true;
+  });
   ipcMain.on('nova:media', (event, media) => {
     if (event.senderFrame !== event.sender.mainFrame) return;
     const tab = tabs.find(item => item.view?.webContents === event.sender);
@@ -1781,7 +1818,7 @@ async function launch() {
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('before-input-event', shortCommand);
   installEditMenu(window.webContents);
-  window.on('resize', () => { layout(); if (mediaExpanded) openMediaPopup(); });
+  window.on('resize', () => { backdropDirty = true; layout(); if (mediaExpanded) openMediaPopup(); });
   window.on('move', () => { if (mediaExpanded) openMediaPopup(); });
   window.on('focus', checkDefaultBrowser);
   if (app.isPackaged && process.platform === 'darwin' && !privateMode) {

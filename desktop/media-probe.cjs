@@ -42,3 +42,13 @@ ipcRenderer.on('nova:media-control', (_event, action) => {
   }
   report();
 });
+
+let scrollReportPending = false;
+window.addEventListener('scroll', () => {
+  if (scrollReportPending) return;
+  scrollReportPending = true;
+  setTimeout(() => {
+    scrollReportPending = false;
+    ipcRenderer.send('nova:page-scrolled');
+  }, 180);
+}, { passive: true, capture: true });

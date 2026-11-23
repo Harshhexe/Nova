@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { ArrowLeftRight, Moon, PictureInPicture2, ArrowLeft, ArrowRight, Bookmark, Clock3, Download, Folder, Globe2, Layers2, MousePointer2, Plus, RotateCcw, Search, Settings2, Star } from 'lucide-react';
+import { ArrowLeftRight, Columns2, Moon, PictureInPicture2, ArrowLeft, ArrowRight, Bookmark, Clock3, Download, Folder, Globe2, Layers2, MousePointer2, Plus, RotateCcw, Search, Settings2, Star } from 'lucide-react';
 
-const toolIcons = { tray: Folder, spaces: Layers2, split: ArrowLeftRight, pip: PictureInPicture2, sleep: Moon };
+const toolIcons = { tray: Folder, spaces: Layers2, split: Columns2, pip: PictureInPicture2, sleep: Moon };
 
 type Tool = keyof typeof toolIcons;
 type DemoId = Tool | 'favorites' | 'customize' | 'pin' | 'tools' | 'history' | 'overview' | 'expand' | 'search';
@@ -16,7 +16,7 @@ const demos = {
   expand: { label: 'Open a tab', text: 'Hover over a preview, then spread two fingers apart to open that tab.' },
   search: { label: 'Search', text: 'Press the search shortcut to open NOVA search over the page you’re on.' },
   tray: { label: 'Tray', text: 'Drop files, links, and text onto Tray to keep them handy.' },
-  spaces: { label: 'Spaces', text: 'Create a Space with its own emoji, tabs, favorites, and wallpaper.' },
+  spaces: { label: 'Spaces', text: 'Create a Space with its own icon, tabs, favorites, and wallpaper.' },
   split: { label: 'Split View', text: 'Open two pages side by side and drag the divider to resize them.' },
   pip: { label: 'Picture in Picture', text: 'Right-click a supported video to float it above other windows.' },
   sleep: { label: 'Sleeping tabs', text: 'Eligible background tabs release memory after 15 minutes and reload when you select them.' }

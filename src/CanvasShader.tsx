@@ -62,11 +62,12 @@ export function CanvasShader({ mode, theme, paused = false }: CanvasShaderProps)
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || paused) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let animId = 0;
+    let frameTimer: number | undefined;
+    let animateUntil = 0;
     let width = 0;
     let height = 0;
     let dpr = 1;
@@ -76,9 +77,9 @@ export function CanvasShader({ mode, theme, paused = false }: CanvasShaderProps)
 
     // Resize handling
     const resize = () => {
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
       width = window.innerWidth;
       height = window.innerHeight;
+      dpr = Math.min(1, Math.sqrt(1_250_000 / Math.max(1, width * height)));
       canvas.width = Math.floor(width * dpr);
       canvas.height = Math.floor(height * dpr);
       canvas.style.width = `${width}px`;
@@ -87,7 +88,6 @@ export function CanvasShader({ mode, theme, paused = false }: CanvasShaderProps)
     };
 
     resize();
-    window.addEventListener('resize', resize);
 
     // Pointer events
     const onPointerMove = (e: PointerEvent) => {
@@ -96,6 +96,7 @@ export function CanvasShader({ mode, theme, paused = false }: CanvasShaderProps)
       pointerRef.current.x = e.clientX;
       pointerRef.current.y = e.clientY;
       pointerRef.current.active = true;
+      wake();
     };
 
     const onPointerLeave = () => {
@@ -103,7 +104,7 @@ export function CanvasShader({ mode, theme, paused = false }: CanvasShaderProps)
     };
 
     const onPointerDown = (e: PointerEvent) => {
-      if (paused || prefersReducedMotion || document.hidden) return;
+      if (prefersReducedMotion || document.hidden) return;
       ripplesRef.current.push({
         x: e.clientX,
         y: e.clientY,
@@ -111,6 +112,7 @@ export function CanvasShader({ mode, theme, paused = false }: CanvasShaderProps)
         maxRadius: Math.min(width, height) * 0.28,
         alpha: 0.65,
       });
+      wake();
     };
 
     window.addEventListener('pointermove', onPointerMove, { passive: true });
@@ -158,9 +160,9 @@ export function CanvasShader({ mode, theme, paused = false }: CanvasShaderProps)
     let smoothMouseY = height / 2;
 
     const render = () => {
-      if (paused) return;
+      if (document.hidden) return;
 
-      time += 0.016;
+      time += 1 / 24;
       ctx.clearRect(0, 0, width, height);
 
       // Smooth pointer interpolation
@@ -389,21 +391,48 @@ export function CanvasShader({ mode, theme, paused = false }: CanvasShaderProps)
         }
         ctx.globalAlpha = 1;
       }
-
-      if (!prefersReducedMotion) {
-        animId = requestAnimationFrame(render);
-      }
     };
 
-    if (prefersReducedMotion) {
+    function tick() {
+      frameTimer = undefined;
+      if (document.hidden) return;
       render();
-    } else {
-      animId = requestAnimationFrame(render);
+      if (performance.now() < animateUntil) frameTimer = window.setTimeout(tick, 1000 / 24);
     }
 
+    function wake() {
+      if (prefersReducedMotion || document.hidden) return;
+      animateUntil = performance.now() + 1600;
+      if (frameTimer === undefined) frameTimer = window.setTimeout(tick, 0);
+    }
+
+    function redraw() {
+      resize();
+      render();
+    }
+
+    function stop() {
+      window.clearTimeout(frameTimer);
+      frameTimer = undefined;
+      animateUntil = 0;
+      pointerRef.current.active = false;
+      ripplesRef.current = [];
+    }
+
+    function visibilityChanged() {
+      if (document.hidden) stop();
+      else render();
+    }
+
+    render();
+    window.addEventListener('resize', redraw);
+    window.addEventListener('blur', stop);
+    document.addEventListener('visibilitychange', visibilityChanged);
     return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener('resize', resize);
+      stop();
+      window.removeEventListener('resize', redraw);
+      window.removeEventListener('blur', stop);
+      document.removeEventListener('visibilitychange', visibilityChanged);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerleave', onPointerLeave);
       window.removeEventListener('pointerdown', onPointerDown);
