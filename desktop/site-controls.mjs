@@ -23,7 +23,7 @@ function permissionKeys(permission, details) {
   return permission === 'geolocation' || permission === 'notifications' ? [permission] : [];
 }
 
-export function installPermissions(session, { getWindow, isActive, readDecision, writeDecision, onDeviceAccess }) {
+export function installPermissions(session, { getWindow, isActive, readDecision, writeDecision, onDeviceAccess, onExternal }) {
   let promptOpen = false;
   function site(contents, url, details = {}) {
     if (!contents || contents.isDestroyed() || !details.isMainFrame) return '';
@@ -38,6 +38,11 @@ export function installPermissions(session, { getWindow, isActive, readDecision,
   });
   session.setPermissionRequestHandler((contents, permission, respond, details) => {
     if (permission === 'fullscreen') return respond(isActive(contents));
+    if (permission === 'openExternal') {
+      respond(false);
+      if (contents && !contents.isDestroyed()) onExternal?.(contents, details);
+      return;
+    }
     const origin = site(contents, details.requestingUrl, details);
     const keys = permissionKeys(permission, details);
     if (!origin || !keys.length || !isActive(contents)) return respond(false);

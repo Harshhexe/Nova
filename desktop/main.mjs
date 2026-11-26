@@ -305,6 +305,53 @@ async function togglePictureInPicture(frame) {
     if (window && !window.isDestroyed()) void dialog.showMessageBox(window, { message: 'Picture in Picture is unavailable for this video.' });
   }
 }
+const whatsAppOrigin = 'https://web.whatsapp.com';
+const whatsAppAppUrl = 'whatsapp://';
+let whatsAppOpenPending = false;
+
+function whatsAppLink(contents, destination) {
+  if (contents.isDestroyed() || contents !== showing?.webContents ||
+      secureOrigin(contents.getURL()) !== whatsAppOrigin || typeof destination !== 'string' ||
+      destination.length > 2048 || /[\x00-\x20\x7f]/.test(destination)) return '';
+  try {
+    const url = new URL(destination);
+    return url.protocol === 'whatsapp:' && !url.username && !url.password ? url.href : '';
+  } catch { return ''; }
+}
+
+async function openWhatsApp(contents, destination, confirm = true) {
+  const url = whatsAppLink(contents, destination);
+  if (!url || whatsAppOpenPending || window.isDestroyed()) return;
+  whatsAppOpenPending = true;
+  try {
+    if (!app.getApplicationNameForProtocol(url)) throw Error('No registered app');
+    if (confirm) {
+      const { response } = await dialog.showMessageBox(window, {
+        message: 'Open WhatsApp Desktop?',
+        detail: 'WhatsApp Web wants to open the installed WhatsApp app.',
+        buttons: ['Cancel', 'Open WhatsApp'], defaultId: 1, cancelId: 0
+      });
+      if (response !== 1 || !whatsAppLink(contents, url)) return;
+    }
+    await shell.openExternal(url);
+  } catch {
+    if (!window.isDestroyed()) {
+      void dialog.showMessageBox(window, { message: 'NOVA couldn’t open WhatsApp Desktop.' });
+    }
+  } finally {
+    whatsAppOpenPending = false;
+  }
+}
+
+function updatePageUserAgent(contents, url) {
+  const original = webSession.getUserAgent();
+  // Leave the real Chromium version and platform intact for WhatsApp’s browser checks.
+  const userAgent = secureOrigin(url) === whatsAppOrigin
+    ? original.replace(/\s+(?:NOVABrowser|Electron)\/[\w.-]+/g, '')
+    : original;
+  if (contents.getUserAgent() !== userAgent) contents.setUserAgent(userAgent);
+}
+
 
 function pageContextMenu(contents, params) {
   if (contents !== showing?.webContents || tour) return;
@@ -357,6 +404,11 @@ function pageContextMenu(contents, params) {
       { type: 'separator' },
       { label: 'Print…', click: () => contents.print() }
     );
+  if (origin === whatsAppOrigin && app.getApplicationNameForProtocol(whatsAppAppUrl)) {
+    menu.push({ type: 'separator' }, {
+      label: 'Open WhatsApp Desktop', click: () => void openWhatsApp(contents, whatsAppAppUrl, false)
+    });
+  }
   }
   Menu.buildFromTemplate(menu).popup({ window, frame: params.frame });
 }
@@ -1011,7 +1063,14 @@ function load(tab, url) {
     });
     for (const name of ['will-navigate', 'will-redirect', 'will-frame-navigate']) {
       contents.on(name, (event, details) => {
-        if (!webUrl(typeof details === 'string' ? details : details?.url ?? event.url)) event.preventDefault();
+        const destination = typeof details === 'string' ? details : details?.url ?? event.url;
+        if (webUrl(destination)) {
+          if (name !== 'will-navigate' && event.isMainFrame) updatePageUserAgent(contents, destination);
+        } else {
+          event.preventDefault();
+          if (name === 'will-frame-navigate' && event.isMainFrame) void openWhatsApp(contents, destination);
+      else void openWhatsApp(contents, url);
+        }
       });
     }
     contents.setWindowOpenHandler(({ url }) => {
@@ -1072,6 +1131,7 @@ function load(tab, url) {
       }
       if (split?.ids.includes(tab.id)) split = undefined;
       tab.error = 'The page stopped responding.';
+  updatePageUserAgent(contents, url);
       tab.loading = false;
       layout();
       publish(false);
@@ -1446,7 +1506,11 @@ function act(action, value) {
     case 'home': if (tab) { panel = false; return goHome(tab); } break;
     case 'back':
       if (!tab?.url) return;
-      if (contents?.navigationHistory.canGoBack()) contents.navigationHistory.goBack();
+      if (contents?.navigationHistory.canGoBack()) {
+        const history = contents.navigationHistory;
+        updatePageUserAgent(contents, history.getEntryAtIndex(history.getActiveIndex() - 1)?.url);
+        history.goBack();
+      }
       else if (tab?.fromHome) return goHome(tab);
       break;
     case 'forward':
@@ -1454,7 +1518,11 @@ function act(action, value) {
         Object.assign(tab, tab.homeForward, { homeForward: undefined, fromHome: true });
         contents?.setAudioMuted(Boolean(tab.homeMuted));
         tab.homeMuted = undefined;
-      } else if (contents?.navigationHistory.canGoForward()) contents.navigationHistory.goForward();
+      } else if (contents?.navigationHistory.canGoForward()) {
+        const history = contents.navigationHistory;
+        updatePageUserAgent(contents, history.getEntryAtIndex(history.getActiveIndex() + 1)?.url);
+        history.goForward();
+      }
       break;
     case 'reload':
       if (tab?.error) return load(tab, tab.url);
@@ -1735,6 +1803,11 @@ async function launch() {
       artwork: typeof media.artwork === 'string' ? webUrl(media.artwork) : '',
       video: media.video === true, playing: media.playing === true,
       currentTime: Number.isFinite(media.currentTime) ? Math.max(0, media.currentTime) : 0,
+    onExternal: (contents, details) => {
+      if (details.isMainFrame && secureOrigin(details.requestingUrl) === whatsAppOrigin) {
+        void openWhatsApp(contents, details.externalURL);
+      }
+    },
       duration: Number.isFinite(media.duration) ? Math.max(0, media.duration) : 0
     } : undefined;
     publish(false);
